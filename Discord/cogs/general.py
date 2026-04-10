@@ -223,9 +223,10 @@ class General(commands.Cog):
             )
 
             embed.add_field(
-                name="Moderation Tracking",
+                name="Staff Tracking",
                 value=(
                     "`/leaderboard`\n"
+                    "`/staffrecord`\n"
                     "`/repeatstats`"
                 ),
                 inline=False,
@@ -234,7 +235,7 @@ class General(commands.Cog):
             if ctx.author.id == OWNER_USER_ID:
 
                 embed.add_field(
-                    name="Testing",
+                    name="Debug",
                     value=(
                         "`/simulaterepeatalert`\n"
                         "`/staffstatus`"
