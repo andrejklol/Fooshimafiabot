@@ -1,0 +1,954 @@
+{
+  "actions": {
+    "usr_873ab0b5-1690-4d1d-8f87-1c6f7246c7a9": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-05T03:11:13.568000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance kick for JaydenS0409 c7a9."
+      }
+    ],
+    "usr_2786c778-620b-45c3-b2b0-4139ed53bf61": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-05T03:05:48.405000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance kick for Milaniiiiiii."
+      }
+    ],
+    "usr_ad0fb627-f59e-4334-a6ed-c78f4d7604cb": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-05T02:59:07.358000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance kick for forever_Zenji."
+      }
+    ],
+    "usr_e44c11dd-fac3-4748-bb2f-9f8ce06a2d7b": [
+      {
+        "action": "warn",
+        "timestamp": "2026-04-05T02:06:05.245000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance warn for M․134314 2d7b."
+      }
+    ],
+    "usr_c5262928-2994-4ec1-ae8a-1ee04234877d": [
+      {
+        "action": "warn",
+        "timestamp": "2026-04-05T01:59:50.865000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance warn for G1itter_g1ue."
+      }
+    ],
+    "usr_9c2bfa95-3833-4f9f-ad0e-4673ec7cc9f4": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-05T00:14:16.696000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for thegodbuilder."
+      }
+    ],
+    "usr_1f3e39ab-7233-464e-b2e2-38a50bb7c670": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T23:46:24.657000+00:00",
+        "actor": "-Bankz-",
+        "description": "-Bankz- has issued an instance kick for Threeamigos89 c670."
+      }
+    ],
+    "usr_7688f8f5-6166-47d6-a649-88c726c0afab": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T23:38:54.346000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for void246."
+      }
+    ],
+    "usr_b517ccd5-0c1e-4b48-91fb-52cf51bc7379": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T23:33:00.172000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Aizawalovescats1125 7379."
+      }
+    ],
+    "usr_28959752-bb96-4870-bc2b-fba1d3d3c8f1": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T03:04:34.635000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance kick for happysonic804 c8f1."
+      }
+    ],
+    "usr_6fd35a7e-b497-4e8f-bd48-04e0cc0d70a2": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T02:00:59.853000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for vezzypoo3 70a2."
+      }
+    ],
+    "usr_93437589-ec9a-49a8-97c6-264a8e2b9a85": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T01:59:06.752000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance kick for gnomik527."
+      }
+    ],
+    "usr_2f88ed60-221c-47d9-ad64-89d2ac3de554": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T01:54:08.679000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance kick for Brayden․97 e554."
+      }
+    ],
+    "usr_fd36f0b6-ea29-46ac-8a9f-f8155b9a846c": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T01:52:18.994000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance kick for Ceejayxxx."
+      }
+    ],
+    "usr_9985e4a3-992c-4026-a719-9b5cc577f6c8": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-04T01:48:01.044000+00:00",
+        "actor": "-Bankz-",
+        "description": "-Bankz- has issued an instance kick for ShrkGT f6c8."
+      }
+    ],
+    "usr_03ee7cd3-964e-40c7-8f93-40369a1ad01f": [
+      {
+        "action": "warn",
+        "timestamp": "2026-04-04T01:44:13.128000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance warn for silver-soul107."
+      }
+    ],
+    "usr_733d6310-ad73-48bf-9066-a82a166bac08": [
+      {
+        "action": "warn",
+        "timestamp": "2026-04-04T01:39:45.254000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance warn for 龍貓OwO."
+      }
+    ],
+    "usr_bd826b3c-8c32-46b9-88e0-4a0458a55d91": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-02T02:16:12.752000+00:00",
+        "actor": "-Bankz-",
+        "description": "-Bankz- has issued an instance kick for Nøctɨs."
+      }
+    ],
+    "usr_b77d8ea3-399f-46fd-b97e-4f6b22b79151": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-02T02:01:07.878000+00:00",
+        "actor": "-Bankz-",
+        "description": "-Bankz- has issued an instance kick for bonnie․360086 9151."
+      }
+    ],
+    "usr_a53a16ea-821f-466c-a26a-e85a3f181f10": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-02T01:47:55.347000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for MrMtFuji."
+      }
+    ],
+    "usr_fc425f96-24a0-4c43-ae0c-b69ad0dadfba": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-02T01:42:29.053000+00:00",
+        "actor": "-Bankz-",
+        "description": "-Bankz- has issued an instance kick for Jordann0 dfba."
+      }
+    ],
+    "usr_ea885225-5d6b-4b54-b13c-43ceaf09c365": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-02T01:09:19.335000+00:00",
+        "actor": "-Bankz-",
+        "description": "-Bankz- has issued an instance kick for S․R․S_cannon c365."
+      }
+    ],
+    "usr_4b6616db-9c53-4f08-816c-f4de9da5574e": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-01T01:32:23.654000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for classclown123․2024 574e."
+      }
+    ],
+    "usr_d92a5f77-0eb7-4aa9-95c0-d3f042180837": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-01T01:01:21.925000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for MClayG 0837."
+      }
+    ],
+    "usr_12e6bf1b-fe8d-4f2f-958e-6d456bd48152": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-01T01:01:07.365000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Dammaannii 8152."
+      }
+    ],
+    "usr_e226b28f-02b0-4984-9905-60ca9be5aa24": [
+      {
+        "action": "kick",
+        "timestamp": "2026-04-01T00:37:26.999000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for goofygoober․187058 aa24."
+      }
+    ],
+    "usr_f2d93042-33b8-438d-b162-40dcf9156cef": [
+      {
+        "action": "warn",
+        "timestamp": "2026-04-01T00:06:17.652000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance warn for Cloudy the puff."
+      }
+    ],
+    "usr_029b22bd-c95c-4af5-a8e1-a266b4edaa5c": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-28T03:41:01.602000+00:00",
+        "actor": "moldy-cheese",
+        "description": "moldy-cheese has issued an instance kick for AydenRuddy777."
+      }
+    ],
+    "usr_6bcb9d2f-9991-4f96-aabe-fc1813a6f804": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-28T00:48:43.430000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for bunker․615779 f804."
+      }
+    ],
+    "usr_b6351ff5-218d-4fcc-bc3b-71185bbaa72f": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-28T00:37:46.176000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for Thathangslanger."
+      }
+    ],
+    "usr_a9083572-34bc-4354-a0a7-829079fbf9b6": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:58:15.495000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for inyadayoo."
+      }
+    ],
+    "usr_9d5729f8-e5ed-4ccc-b6e2-76ab65e6032b": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:54:39.875000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for HizHolyness 032b."
+      }
+    ],
+    "usr_07986ca9-8456-4059-b3ea-623aed75e790": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:54:34.768000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for vr_player98 e790."
+      }
+    ],
+    "usr_79ff2bf3-134d-40d1-b2a3-7dd2cdc15cd9": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:53:44.225000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for raven_talons 5cd9."
+      }
+    ],
+    "usr_04f31338-c6c6-453b-a11b-23b46b3c9c28": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:51:21.568000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Bradythewall5 9c28."
+      }
+    ],
+    "usr_d5cf2928-6e90-44bb-8ec2-5378aa6615aa": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:41:08.319000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for FriendlyPuffin6210 15aa."
+      }
+    ],
+    "usr_939734e7-baf6-4e4f-96c3-de26724d7b5b": [
+      {
+        "action": "warn",
+        "timestamp": "2026-03-27T23:27:12.233000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance warn for KobeyKobee."
+      }
+    ],
+    "usr_8cc1dd35-6ce7-43d1-90aa-3dc4656a55f1": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:24:54.211000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for EllNegroo 55f1."
+      }
+    ],
+    "usr_95ccc260-b283-4f0a-8017-8c7fc387ea1b": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:24:48.830000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Bman23."
+      }
+    ],
+    "usr_778ec019-08ac-4ffc-a0ca-b0bbc9043ae7": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:23:28.288000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for firecrackers006 3ae7."
+      }
+    ],
+    "usr_a52eaa2d-bdbe-4414-a6d6-bf9e9636aa34": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T23:08:09.841000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for antman5․2025 aa34."
+      }
+    ],
+    "usr_85962571-3a97-4b18-9e3b-ddc749edc9b5": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T22:54:32.198000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for R E D H O O D."
+      }
+    ],
+    "usr_54dd216d-dfc9-47d7-8c85-210ca8df3cfc": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T22:50:34.121000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for Sandoval_1000 3cfc."
+      }
+    ],
+    "usr_f0495286-5892-464d-aebd-9f62d6bdd7d5": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T22:47:30.178000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for KDanger2016 d7d5."
+      }
+    ],
+    "usr_ffe189d5-c2a5-43ac-bec2-0f3f58b1c2a0": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-27T22:42:18.570000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for bl00m․2025 c2a0."
+      }
+    ],
+    "usr_ea481e49-2d58-498d-b85c-71db336b499f": [
+      {
+        "action": "ban",
+        "timestamp": "2026-03-26T19:54:30.282000+00:00",
+        "actor": "-Bankz-",
+        "description": "Member -Bankz- has rejected RatManVR1 499f's join request."
+      }
+    ],
+    "usr_4b5f1ddb-8806-4eb9-abd1-6ee3cb3d4713": [
+      {
+        "action": "warn",
+        "timestamp": "2026-03-19T02:58:24.745000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance warn for Acuelogan."
+      }
+    ],
+    "usr_0569254f-32ff-48a3-a05d-298b506b2a56": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-19T02:35:51.879000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for aatarpak 2a56."
+      }
+    ],
+    "usr_554b998a-50f3-4fe3-84fb-81c2ff117fd8": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-19T00:29:32.522000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Andres_rojasX 7."
+      }
+    ],
+    "usr_62791ed1-fcfb-4d88-b09f-ba40dc1a4e51": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:35:03.452000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Rayj9279 4e51."
+      }
+    ],
+    "usr_2d40ad15-0e63-4863-99d2-efb43a5487c8": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:34:28.900000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for A1den_C 87c8."
+      }
+    ],
+    "usr_35276ddf-a886-4b49-9eda-76e80436eeb9": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:32:36.478000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Linababi22 eeb9."
+      }
+    ],
+    "usr_79347993-263b-46fe-a0ea-6376a9394b8c": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:28:38.372000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for spiderman1234534 4b8c."
+      }
+    ],
+    "usr_9ee535fb-22e2-40b2-be7e-d688d2b95bdc": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:22:42.084000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for tylertag 5bdc."
+      }
+    ],
+    "usr_aae0c934-3ea4-4bc5-8033-a5ad107b5e5d": [
+      {
+        "action": "ban",
+        "timestamp": "2026-03-18T23:18:20.121000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "User Ziray threats was preemptively banned by V̸̯̈́o̷̧͛͝í̷d̴̄."
+      }
+    ],
+    "usr_67e5597c-85fe-417c-b03f-613b169183fc": [
+      {
+        "action": "ban",
+        "timestamp": "2026-03-18T23:18:02.748000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "User Kmya2 was preemptively banned by V̸̯̈́o̷̧͛͝í̷d̴̄."
+      }
+    ],
+    "usr_32c87e4d-ab0b-4f7e-a8c6-6335704aa909": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:08:35.264000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for JaxsenCruz a909."
+      }
+    ],
+    "usr_46ca11d7-0017-4ee1-a222-ed0186bc8e7f": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:05:57.533000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Boobear17 8e7f."
+      }
+    ],
+    "usr_ad88fd4f-62f2-4fe3-ad45-0fd5ea9a3ff3": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:05:55.073000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for huntermcmufin."
+      }
+    ],
+    "usr_a81a7dd1-1ab0-438c-a62e-8da9c3747b6f": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:02:04.068000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for TURDMCGERD 7b6f."
+      }
+    ],
+    "usr_181d11aa-5fcd-4b20-8102-699efa72c178": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:00:58.941000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for wixy c178."
+      }
+    ],
+    "usr_f10d15b6-7494-46bf-bf4d-a1684e8c8a15": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:00:21.554000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for CuriousMerlin7017 8a15."
+      }
+    ],
+    "usr_7686ab57-d9f2-45cf-9db1-c44a5b65ff2c": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T23:00:00.518000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for kaison149 ff2c."
+      }
+    ],
+    "usr_892ec4aa-ee8d-4a87-8b28-ce504f40e52d": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T22:58:52.934000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Neckeymouse e52d."
+      }
+    ],
+    "usr_9ac16931-bace-433b-bd91-e9514afe7586": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T22:45:55.069000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for darkflash779_BDB 7586."
+      }
+    ],
+    "usr_0da39ee1-062a-4023-bd1a-f06648cd886b": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T01:13:46.640000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Afonso dave."
+      }
+    ],
+    "usr_d01588c9-14d1-47f6-a5e8-698026dffae8": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T00:44:54.850000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Arturo-15."
+      }
+    ],
+    "usr_439e420a-b5f1-472e-95b2-a1045511f8b2": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T00:35:14.409000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for sirelii f8b2."
+      }
+    ],
+    "usr_89b614fa-62eb-4086-bffb-a55e041e8b3d": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T00:33:40.887000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for 1․highland․queen 8b3d."
+      }
+    ],
+    "usr_ecd9e664-6456-4d34-b4fb-30af38519bc8": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-18T00:24:23.977000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for RJcool123 9bc8."
+      }
+    ],
+    "usr_6cae54bc-20a9-410e-9cf0-8803820a9001": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-17T00:23:48.477000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for sumthingrandom353 9001."
+      }
+    ],
+    "usr_26f03ad8-cf3e-469b-8bee-30261ecd4400": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-17T00:22:58.674000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Mollah․B2016 4400."
+      }
+    ],
+    "usr_56357fd4-9eaa-4657-b7fe-e21d21b3794d": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-17T00:20:22.537000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for EpicDisaster9 794d."
+      }
+    ],
+    "usr_862f626e-5f6e-49ac-9d7d-8c52672b430d": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-17T00:17:17.540000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Sarratt0314 430d."
+      }
+    ],
+    "usr_890ab34c-682b-4023-9369-3cc4074539b2": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-17T00:16:59.138000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Veggyguy."
+      }
+    ],
+    "usr_e8e2bb7f-732b-43f0-bbe6-e136e097257a": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-17T00:13:09.779000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for popsbarrios 257a."
+      }
+    ],
+    "usr_4e3ab589-0e3f-47ab-9d31-0d598bf82c00": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-17T00:06:52.623000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for clipzbadger 2c00."
+      }
+    ],
+    "usr_d6b6d7b2-2e22-424a-a64d-d44b3f49927e": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-16T23:46:20.093000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for 1KingFox 927e."
+      }
+    ],
+    "usr_afbd49b6-9e53-4324-a208-2028fecd3f1f": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-16T23:39:46.709000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for BT1296568 3f1f."
+      }
+    ],
+    "usr_fe0ac5d2-c47d-4e2b-b015-07b4e80913b1": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-16T23:26:37.453000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Ultimatebean."
+      }
+    ],
+    "usr_96f94090-9757-4e96-8529-7fbc1e119b0e": [
+      {
+        "action": "ban",
+        "timestamp": "2026-03-15T01:15:04.707000+00:00",
+        "actor": "-Bankz-",
+        "description": "User MoîstCr1TiKaL has been added to the group by -Bankz-."
+      }
+    ],
+    "usr_d0dfc8da-c2b7-4ea2-b01b-f68dcabdfa6b": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T02:49:21.793000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for TwndNOwnd fa6b."
+      }
+    ],
+    "usr_d2674ce5-b884-4895-8f67-adbd7b1538da": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T02:49:01.024000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for KnightGamer1776 38da."
+      }
+    ],
+    "usr_9d9077b5-c7c6-400c-af33-6af50aedf984": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T02:47:56.383000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for kemz301 f984."
+      }
+    ],
+    "usr_d7f43c6a-5895-42cd-b314-97bc091d8a4d": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T02:19:27.949000+00:00",
+        "actor": "TheToga908",
+        "description": "TheToga908 has issued an instance kick for WyattRyder 8a4d."
+      }
+    ],
+    "usr_67ce4203-2a1a-4bd0-9f91-d5c7def05115": [
+      {
+        "action": "ban",
+        "timestamp": "2026-03-14T00:55:43.459000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "User --Mangovr-- was preemptively banned by V̸̯̈́o̷̧͛͝í̷d̴̄."
+      },
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T00:55:41.972000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for --Mangovr--."
+      },
+      {
+        "action": "kick",
+        "timestamp": "2026-03-13T23:32:46.076000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for --Mangovr--."
+      }
+    ],
+    "usr_88cea240-57ea-464d-be51-bb91c45234b8": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T00:55:29.655000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Angel̴."
+      }
+    ],
+    "usr_8172c5eb-0092-4d69-9c76-606b84cd7e55": [
+      {
+        "action": "ban",
+        "timestamp": "2026-03-14T00:29:14.970000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "User ღCaitღ was preemptively banned by V̸̯̈́o̷̧͛͝í̷d̴̄."
+      },
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T00:25:36.745000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for ღCaitღ."
+      }
+    ],
+    "usr_b74fcb81-395d-48cb-b14f-517faba524ae": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T00:25:44.746000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for pretty prìncess."
+      }
+    ],
+    "usr_847477f1-0ece-4f67-af1f-5bf74baac71c": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-14T00:04:09.656000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for ieatrocks_."
+      }
+    ],
+    "usr_b46ae96b-2ad8-40ff-b791-c28616726ad6": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-13T23:32:51.716000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Inariokami17."
+      }
+    ],
+    "usr_910c247d-b94a-4830-b764-ac605da6db9b": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-13T23:17:08.855000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Jacob db9b."
+      }
+    ],
+    "usr_957c5385-f788-4eef-b9ad-82fa83b68d7a": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-13T23:17:04.689000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for G3N4LK0S3R 8d7a."
+      }
+    ],
+    "usr_47338c2e-b6ce-4462-bf6c-46b555a60fd2": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-13T23:14:06.026000+00:00",
+        "actor": "-Bankz-",
+        "description": "-Bankz- has issued an instance kick for Davisfammjocai 0fd2."
+      }
+    ],
+    "usr_d92d9b75-9863-421b-ab8c-d19b8abcca65": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-13T22:06:00.834000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Giggity_gengarp."
+      },
+      {
+        "action": "ban",
+        "timestamp": "2026-03-13T22:06:00.524000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "User Giggity_gengarp was banned by V̸̯̈́o̷̧͛͝í̷d̴̄."
+      }
+    ],
+    "usr_0dee1b24-5c9e-4b9b-9466-2db0601233c6": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-13T21:56:21.478000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for poolvr13 33c6."
+      }
+    ],
+    "usr_db083e8a-0cd3-4e87-bf94-7b8d9c713c1d": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-12T00:23:26.443000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for MMV6810 3c1d."
+      }
+    ],
+    "usr_8604cd7e-0936-445d-a0e1-00c788bf2e02": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-12T00:03:01.405000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for king․noah․xl30 2e02."
+      }
+    ],
+    "usr_6bc3d77d-66f0-4e8b-9ab5-bbc156753005": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:51:36.086000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for DaysR64 3005."
+      }
+    ],
+    "usr_b4679d2f-ce34-40ae-9930-fb5129bd39d1": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:51:13.319000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for SUNWH1SK3R 39d1."
+      }
+    ],
+    "usr_5efa89e8-ca86-4ce9-8977-aac7cb74de2f": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:50:25.502000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for alex the beast8."
+      }
+    ],
+    "usr_fdd45ca5-61cf-485a-956b-cbf2ea66ab49": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:49:57.824000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for KameirsF ab49."
+      }
+    ],
+    "usr_63413ae4-3448-42c7-a6f0-be6038f81a4c": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:47:02.578000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for ¡ᴇᴜᴘʜᴏʀɪᴄ¡."
+      }
+    ],
+    "usr_2dc947c7-a048-48bf-9ab3-f9d4a6744067": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:42:29.541000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Triceratops422 4067."
+      }
+    ],
+    "usr_ec1e8df1-0dc6-4923-a562-a6c7e28a7172": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:24:01.830000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for B3NTL3Y 7172."
+      }
+    ],
+    "usr_c81fce7b-d536-4d97-bab5-9916e95dce09": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:19:43.260000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for JackPlane ce09."
+      }
+    ],
+    "usr_936e26b7-b004-47ed-927b-75bbf34f06ea": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:18:07.997000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Juan211005 06ea."
+      }
+    ],
+    "usr_09cf0882-304b-4371-a8f2-dd872d40ee96": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T23:13:57.114000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for manster_tanker."
+      }
+    ],
+    "usr_02ab72e0-a6d0-4ace-ab95-1cd646b43da6": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T22:53:12.522000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Irishm3rc 3da6."
+      }
+    ],
+    "usr_637d0c31-93b5-4588-b13f-647ae2133065": [
+      {
+        "action": "warn",
+        "timestamp": "2026-03-11T22:50:47.466000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance warn for sheluxzbry 3065."
+      }
+    ],
+    "usr_332890d4-2223-4844-abac-1e584d019fe7": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-11T22:50:29.268000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Notfunnym."
+      },
+      {
+        "action": "warn",
+        "timestamp": "2026-03-11T22:49:51.958000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance warn for Notfunnym."
+      }
+    ],
+    "usr_7bcb1d27-c055-4c83-b756-5b908637a9cd": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-08T04:10:40.016000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for Ṣqůìṣĥÿ༒Ĵªčē."
+      }
+    ],
+    "usr_ae12caab-dbc5-4b65-a8e4-861f387e144a": [
+      {
+        "action": "warn",
+        "timestamp": "2026-03-08T03:02:28.772000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance warn for zyinhd527 144a."
+      }
+    ],
+    "usr_73c41f40-42cc-4ae1-a791-491f50b1c084": [
+      {
+        "action": "kick",
+        "timestamp": "2026-03-08T02:59:01.703000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance kick for BASlCPLAYER."
+      },
+      {
+        "action": "warn",
+        "timestamp": "2026-03-08T02:56:35.453000+00:00",
+        "actor": "V̸̯̈́o̷̧͛͝í̷d̴̄",
+        "description": "V̸̯̈́o̷̧͛͝í̷d̴̄ has issued an instance warn for BASlCPLAYER."
+      }
+    ]
+  },
+  "alerted_keys": [],
+  "target_name_cache": {}
+}
