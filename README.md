@@ -182,20 +182,6 @@ pip install -r requirements.txt
 
 ---
 
-## Environment Variables (.env)
-
-DISCORD_TOKEN=
-
-VRC_USERNAME=
-
-VRC_PASSWORD=
-
-GROUP_ID=
-
-LOG_CHANNEL_ID=
-
----
-
 ## Running the Bot
 
 python Discord/main.py
