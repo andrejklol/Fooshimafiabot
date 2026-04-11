@@ -55,6 +55,7 @@ KNOWN_PLATFORMS = {
     "standalonewindows",
     "vive",
     "oculus",
+    "web",   # added so active+web can count as supported
 }
 
 
@@ -63,7 +64,6 @@ KNOWN_PLATFORMS = {
 # ============================================================
 
 def decide_online_with_reason(signals: dict) -> tuple[bool, str]:
-
     ws_online = signals.get("ws_online")
     friend_presence = signals.get("friend_presence")
     mod_action_recent = signals.get("mod_action_recent")
@@ -87,13 +87,12 @@ def decide_online_with_reason(signals: dict) -> tuple[bool, str]:
 
     # Tier 3
     if user_status in ONLINE_USER_STATUS:
-
         supporting_hint = (
-                ws_online is True
-                or friend_presence is True
-                or mod_action_recent
-                or audit_actor_recent
-                or last_platform in KNOWN_PLATFORMS
+            ws_online is True
+            or friend_presence is True
+            or mod_action_recent
+            or audit_actor_recent
+            or last_platform in KNOWN_PLATFORMS
         )
 
         if supporting_hint:
@@ -109,15 +108,14 @@ def decide_online_with_reason(signals: dict) -> tuple[bool, str]:
 # ============================================================
 
 async def process_user_status(
-        user_id: str,
-        ws_online: bool | None = None,
-        friend_presence: bool | None = None,
-        mod_action_recent: bool | None = None,
-        audit_actor_recent: bool | None = None,
-        user_status: str | None = None,
-        last_platform: str | None = None,
+    user_id: str,
+    ws_online: bool | None = None,
+    friend_presence: bool | None = None,
+    mod_action_recent: bool | None = None,
+    audit_actor_recent: bool | None = None,
+    user_status: str | None = None,
+    last_platform: str | None = None,
 ):
-
     trace_id = new_trace_id()
 
     signals = {
@@ -144,7 +142,6 @@ async def process_user_status(
     # ========================================================
 
     if previous is None:
-
         log_path(
             trace_id,
             "status.initial",
@@ -152,10 +149,15 @@ async def process_user_status(
             user_id=user_id,
             online=final_online,
             reason=reason,
+            ws_online=ws_online,
+            friend_presence=friend_presence,
+            mod_action_recent=mod_action_recent,
+            audit_actor_recent=audit_actor_recent,
+            user_status=user_status,
+            last_platform=last_platform,
         )
 
     elif previous["online"] != final_online:
-
         log_path(
             trace_id,
             "status.changed",
@@ -164,16 +166,27 @@ async def process_user_status(
             old=previous["online"],
             new=final_online,
             reason=reason,
+            ws_online=ws_online,
+            friend_presence=friend_presence,
+            mod_action_recent=mod_action_recent,
+            audit_actor_recent=audit_actor_recent,
+            user_status=user_status,
+            last_platform=last_platform,
         )
 
     else:
-
         log_path(
             trace_id,
             "status.same",
             user_id=user_id,
             online=final_online,
             reason=reason,
+            ws_online=ws_online,
+            friend_presence=friend_presence,
+            mod_action_recent=mod_action_recent,
+            audit_actor_recent=audit_actor_recent,
+            user_status=user_status,
+            last_platform=last_platform,
         )
 
     return final_online
