@@ -39,6 +39,7 @@ _USER_AGENT = "FooshiMafiaBot/1.3 (contact: fooshimafia@gmail.com)"
 
 GROUP_ROLE_REFRESH_TTL_SECONDS = 900
 GROUP_MEMBER_REFRESH_TTL_SECONDS = 900
+GROUP_INFO_REFRESH_TTL_SECONDS = 900
 AMBIGUOUS_STATUS_RECHECK_SECONDS = 6
 
 PIPELINE_URL_BASE = "wss://pipeline.vrchat.cloud/"
@@ -106,6 +107,20 @@ def _member_role_names_from_obj(member_obj) -> list[str]:
     return list(set(role_names))
 
 
+def _extract_group_name(group_obj) -> str | None:
+    for field in ("name", "display_name", "displayName", "group_name"):
+        if (value := str(getattr(group_obj, field, None) or "").strip()):
+            return value
+    return None
+
+
+def _extract_group_id(group_obj) -> str | None:
+    for field in ("id", "group_id", "groupId"):
+        if (value := str(getattr(group_obj, field, None) or "").strip()):
+            return value
+    return None
+
+
 # ============================================================
 # CACHE STALENESS
 # ============================================================
@@ -120,6 +135,12 @@ def _member_cache_is_stale() -> bool:
     return (
             _now_ts() - (getattr(app_state, "vrc_group_members_last_refresh", 0.0) or 0.0)
     ) >= GROUP_MEMBER_REFRESH_TTL_SECONDS
+
+
+def _group_info_cache_is_stale() -> bool:
+    return (
+            _now_ts() - (getattr(app_state, "vrc_group_info_last_refresh", 0.0) or 0.0)
+    ) >= GROUP_INFO_REFRESH_TTL_SECONDS
 
 
 def _pipeline_cache_is_stale() -> bool:
@@ -153,8 +174,12 @@ def _ensure_recent_activity_state() -> None:
 def _ensure_vrc_sync_state() -> None:
     _ensure_attr_default("vrc_group_roles_last_error_ts", 0.0)
     _ensure_attr_default("vrc_group_members_last_error_ts", 0.0)
+    _ensure_attr_default("vrc_group_info_last_error_ts", 0.0)
     _ensure_attr_default("vrc_group_roles_refresh_lock", asyncio.Lock)
     _ensure_attr_default("vrc_group_members_refresh_lock", asyncio.Lock)
+    _ensure_attr_default("vrc_group_info_refresh_lock", asyncio.Lock)
+    _ensure_attr_default("group_cache", dict)
+    _ensure_attr_default("vrc_group_info_last_refresh", 0.0)
 
 
 # ============================================================
@@ -809,6 +834,53 @@ async def get_pretty_vrc_name(entry) -> tuple[str, str]:
 # GROUP CACHE
 # ============================================================
 
+async def refresh_group_cache_once(force: bool = False) -> None:
+    if not app_state.vrc_groups_api or vrchat_cooldown_active():
+        return
+
+    _ensure_vrc_sync_state()
+
+    async with app_state.vrc_group_info_refresh_lock:
+        if not force and app_state.group_cache and not _group_info_cache_is_stale():
+            return
+
+        try:
+            group = await _run_vrc_api_call(
+                app_state.vrc_groups_api.get_group,
+                GROUP_ID,
+            )
+
+            if group is None:
+                log.warning("group_info refresh returned no group object; keeping existing cache")
+                return
+
+            group_id = _extract_group_id(group) or str(GROUP_ID)
+            group_name = _extract_group_name(group)
+
+            if not group_name:
+                log.warning("group_info refresh returned no group name; keeping existing cache")
+                return
+
+            app_state.group_cache[group_id] = {
+                "id": group_id,
+                "name": group_name,
+                "displayName": group_name,
+            }
+            app_state.vrc_group_info_last_refresh = _now_ts()
+
+            if hasattr(app_state, "sync_cache_aliases"):
+                app_state.sync_cache_aliases()
+
+            log.info("cached group info id=%s name=%s", group_id, group_name)
+
+        except Exception as exc:
+            await _send_rate_limited_error(
+                "Group Cache Error",
+                exc,
+                "vrc_group_info_last_error_ts",
+            )
+
+
 async def refresh_vrc_group_roles(force: bool = False) -> None:
     if not app_state.vrc_groups_api or vrchat_cooldown_active():
         return
@@ -871,6 +943,7 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
             return
 
         try:
+            await refresh_group_cache_once(force=force)
             await refresh_vrc_group_roles(force=force)
 
             offset = 0
@@ -1017,6 +1090,8 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
 async def ensure_vrc_group_cache_ready() -> None:
     if not app_state.vrc_group_member_roles and not vrchat_cooldown_active():
         await refresh_vrc_group_members(force=True)
+    elif not getattr(app_state, "group_cache", None) and not vrchat_cooldown_active():
+        await refresh_group_cache_once(force=True)
 
 
 # ============================================================
@@ -1325,6 +1400,7 @@ async def login_vrchat() -> bool:
     async def _complete_login(user) -> bool:
         _finalise_login(api_client, auth_api)
         await _refresh_friend_presence_cache(force=True)
+        await refresh_group_cache_once(force=True)
 
         log.info("VRChat login successful: %s", user.display_name)
 
@@ -1372,6 +1448,7 @@ async def login_vrchat() -> bool:
             await send_error_log("VRChat 2FA Failed", otp_exc)
             return False
 
+
 # ============================================================
 # STAFF LIST FROM VRC GROUP
 # ============================================================
@@ -1392,7 +1469,6 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
     ]
     """
 
-    # ensure cache ready
     if force_refresh:
         await refresh_vrc_group_members(force=True)
     else:
@@ -1437,6 +1513,7 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
     )
 
     return results
+
 
 # ============================================================
 # STARTUP TIMESTAMP
