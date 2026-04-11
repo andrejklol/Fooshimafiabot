@@ -1,0 +1,178 @@
+{
+  "staff": {
+    "usr_1560e59a-983c-4802-90ee-88963b1893dd": {
+      "id": "usr_1560e59a-983c-4802-90ee-88963b1893dd",
+      "name": "V\u0338\u0344\u032fo\u0337\u035d\u035b\u0327i\u0337\u0341d\u0334\u0304",
+      "warn": 74,
+      "kick": 201,
+      "ban": 10,
+      "invite": 5,
+      "invite_accept": 5,
+      "points": 521
+    },
+    "usr_e7f83a47-a121-428d-a79b-72ae1c618705": {
+      "id": "usr_e7f83a47-a121-428d-a79b-72ae1c618705",
+      "name": "Andrejklol",
+      "warn": 98,
+      "kick": 53,
+      "ban": 20,
+      "invite": 45,
+      "invite_accept": 45,
+      "points": 329
+    },
+    "usr_3d664c85-ce46-4441-9a92-5a58946098c3": {
+      "id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3",
+      "name": "moldy-cheese",
+      "warn": 22,
+      "kick": 22,
+      "ban": 0,
+      "invite": 72,
+      "invite_accept": 72,
+      "points": 138
+    },
+    "usr_b1431dfd-201a-476f-8cbc-3908527cc370": {
+      "id": "usr_b1431dfd-201a-476f-8cbc-3908527cc370",
+      "name": "-Bankz-",
+      "warn": 34,
+      "kick": 28,
+      "ban": 0,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 90
+    },
+    "usr_c8792290-a8ae-4174-bf01-706f47a2dc65": {
+      "id": "usr_c8792290-a8ae-4174-bf01-706f47a2dc65",
+      "name": "TheToga908",
+      "warn": 0,
+      "kick": 20,
+      "ban": 0,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 40
+    },
+    "usr_5e59ad1d-053f-461e-a301-45dc39cb0b38": {
+      "id": "usr_5e59ad1d-053f-461e-a301-45dc39cb0b38",
+      "name": "Dawizarmaan 0b38",
+      "warn": 0,
+      "kick": 17,
+      "ban": 0,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 34
+    },
+    "usr_8c95ece0-3e42-4b78-9036-5fc75aa5ca3c": {
+      "id": "usr_8c95ece0-3e42-4b78-9036-5fc75aa5ca3c",
+      "name": "Finley_yeet",
+      "warn": 0,
+      "kick": 0,
+      "ban": 0,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 0
+    },
+    "usr_9252b0c1-586d-47c8-8282-314a30ef3eac": {
+      "id": "usr_9252b0c1-586d-47c8-8282-314a30ef3eac",
+      "name": "Fufushi",
+      "warn": 0,
+      "kick": 4,
+      "ban": 1,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 12
+    },
+    "usr_d19a8408-8991-4822-88f5-38093ccb4620": {
+      "id": "usr_d19a8408-8991-4822-88f5-38093ccb4620",
+      "name": "Springbon83",
+      "warn": 1,
+      "kick": 10,
+      "ban": 0,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 21
+    }
+  },
+  "monthly": {
+    "usr_5e59ad1d-053f-461e-a301-45dc39cb0b38": {
+      "id": "usr_5e59ad1d-053f-461e-a301-45dc39cb0b38",
+      "name": "Dawizarmaan 0b38",
+      "warn": 0,
+      "kick": 17,
+      "ban": 0,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 34
+    },
+    "usr_1560e59a-983c-4802-90ee-88963b1893dd": {
+      "id": "usr_1560e59a-983c-4802-90ee-88963b1893dd",
+      "name": "V\u0338\u0344\u032fo\u0337\u035d\u035b\u0327i\u0337\u0341d\u0334\u0304",
+      "warn": 5,
+      "kick": 28,
+      "ban": 1,
+      "invite": 11,
+      "invite_accept": 11,
+      "points": 76
+    },
+    "usr_9252b0c1-586d-47c8-8282-314a30ef3eac": {
+      "id": "usr_9252b0c1-586d-47c8-8282-314a30ef3eac",
+      "name": "Fufushi",
+      "warn": 0,
+      "kick": 7,
+      "ban": 1,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 18
+    },
+    "usr_3d664c85-ce46-4441-9a92-5a58946098c3": {
+      "id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3",
+      "name": "moldy-cheese",
+      "warn": 10,
+      "kick": 9,
+      "ban": 0,
+      "invite": 41,
+      "invite_accept": 41,
+      "points": 69
+    },
+    "usr_b1431dfd-201a-476f-8cbc-3908527cc370": {
+      "id": "usr_b1431dfd-201a-476f-8cbc-3908527cc370",
+      "name": "-Bankz-",
+      "warn": 4,
+      "kick": 6,
+      "ban": 0,
+      "invite": 1,
+      "invite_accept": 1,
+      "points": 17
+    },
+    "usr_8c95ece0-3e42-4b78-9036-5fc75aa5ca3c": {
+      "id": "usr_8c95ece0-3e42-4b78-9036-5fc75aa5ca3c",
+      "name": "Finley_yeet",
+      "warn": 0,
+      "kick": 0,
+      "ban": 0,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 0
+    },
+    "usr_d19a8408-8991-4822-88f5-38093ccb4620": {
+      "id": "usr_d19a8408-8991-4822-88f5-38093ccb4620",
+      "name": "Springbon83",
+      "warn": 1,
+      "kick": 10,
+      "ban": 0,
+      "invite": 0,
+      "invite_accept": 0,
+      "points": 21
+    },
+    "usr_e7f83a47-a121-428d-a79b-72ae1c618705": {
+      "id": "usr_e7f83a47-a121-428d-a79b-72ae1c618705",
+      "name": "Andrejklol",
+      "warn": 0,
+      "kick": 0,
+      "ban": 0,
+      "invite": 6,
+      "invite_accept": 6,
+      "points": 6
+    }
+  },
+  "monthly_reset_key": "2026-04",
+  "pending_invites_by_target": {}
+}
