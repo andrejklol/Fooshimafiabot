@@ -90,9 +90,9 @@ def _ensure_staff(section: str, staff_id: str, staff_name: str) -> bool:
 
 
 def _ensure_staff_in_needed_sections(
-        staff_id: str,
-        staff_name: str,
-        monthly_only: bool = False,
+    staff_id: str,
+    staff_name: str,
+    monthly_only: bool = False,
 ) -> bool:
 
     changed = False
@@ -142,7 +142,6 @@ def _get_repeat_entry(target_id: str, target_name: str | None = None) -> tuple[d
 
 
 def _track_repeat_offender(entry, action: str) -> bool:
-
     if action not in _MOD_ACTIONS:
         return False
 
@@ -157,9 +156,9 @@ def _track_repeat_offender(entry, action: str) -> bool:
 
     repeat_entry[action] = _coerce_int(repeat_entry.get(action, 0)) + 1
     repeat_entry["total"] = (
-            _coerce_int(repeat_entry.get("warn", 0))
-            + _coerce_int(repeat_entry.get("kick", 0))
-            + _coerce_int(repeat_entry.get("ban", 0))
+        _coerce_int(repeat_entry.get("warn", 0))
+        + _coerce_int(repeat_entry.get("kick", 0))
+        + _coerce_int(repeat_entry.get("ban", 0))
     )
     repeat_entry["last_action"] = action
 
@@ -167,10 +166,10 @@ def _track_repeat_offender(entry, action: str) -> bool:
 
 
 def _apply_action_to_section(
-        section: str,
-        staff_id: str,
-        staff_name: str,
-        action: str,
+    section: str,
+    staff_id: str,
+    staff_name: str,
+    action: str,
 ) -> None:
 
     _ensure_staff(section, staff_id, staff_name)
@@ -201,10 +200,10 @@ def _apply_action_to_section(
 
 
 def _apply_action(
-        staff_id: str,
-        staff_name: str,
-        action: str,
-        monthly_only: bool = False,
+    staff_id: str,
+    staff_name: str,
+    action: str,
+    monthly_only: bool = False,
 ) -> None:
 
     if monthly_only:
@@ -219,16 +218,15 @@ def _apply_action(
 
 def _get_raw_event_type(entry) -> str:
     raw = (
-            getattr(entry, "eventType", None)
-            or getattr(entry, "event_type", None)
-            or getattr(entry, "eventtype", None)
-            or ""
+        getattr(entry, "eventType", None)
+        or getattr(entry, "event_type", None)
+        or getattr(entry, "eventtype", None)
+        or ""
     )
     return str(raw).lower().strip()
 
 
 def _get_actor(entry):
-
     actor = getattr(entry, "actor", None)
 
     if actor is not None:
@@ -238,15 +236,13 @@ def _get_actor(entry):
 
 
 def _get_target_id(entry):
-
     return (
-            getattr(entry, "targetId", None)
-            or getattr(entry, "target_user_id", None)
+        getattr(entry, "targetId", None)
+        or getattr(entry, "target_user_id", None)
     )
 
 
 def _get_target_name(entry):
-
     target = getattr(entry, "target", None)
 
     if target:
@@ -256,12 +252,22 @@ def _get_target_name(entry):
 
 
 def _get_action_type(entry):
-
     raw = _get_raw_event_type(entry)
 
-    if "invite.accept" in raw or "inviteaccepted" in raw:
+    # invite accepted / joined group
+    if (
+        "invite.accept" in raw
+        or "inviteaccepted" in raw
+        or "member.add" in raw
+        or "member.join" in raw
+        or "user.join" in raw
+        or "group.member.add" in raw
+        or "group.member.join" in raw
+        or "group.user.join" in raw
+    ):
         return "invite_accept"
 
+    # invite sent
     if "invite" in raw and "accept" not in raw:
         return "invite"
 
@@ -278,7 +284,6 @@ def _get_action_type(entry):
 
 
 async def _is_staff_actor(actor_id: str) -> bool:
-
     try:
         return await vrc_user_is_staff(str(actor_id))
     except Exception:
@@ -286,10 +291,9 @@ async def _is_staff_actor(actor_id: str) -> bool:
 
 
 async def process_audit_log_entry(
-        entry,
-        monthly_only: bool = False,
+    entry,
+    monthly_only: bool = False,
 ):
-
     action = _get_action_type(entry)
 
     if not action:
