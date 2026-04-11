@@ -127,19 +127,19 @@ def _extract_group_id(group_obj) -> str | None:
 
 def _role_cache_is_stale() -> bool:
     return (
-            _now_ts() - (getattr(app_state, "vrc_group_roles_last_refresh", 0.0) or 0.0)
+        _now_ts() - (getattr(app_state, "vrc_group_roles_last_refresh", 0.0) or 0.0)
     ) >= GROUP_ROLE_REFRESH_TTL_SECONDS
 
 
 def _member_cache_is_stale() -> bool:
     return (
-            _now_ts() - (getattr(app_state, "vrc_group_members_last_refresh", 0.0) or 0.0)
+        _now_ts() - (getattr(app_state, "vrc_group_members_last_refresh", 0.0) or 0.0)
     ) >= GROUP_MEMBER_REFRESH_TTL_SECONDS
 
 
 def _group_info_cache_is_stale() -> bool:
     return (
-            _now_ts() - (getattr(app_state, "vrc_group_info_last_refresh", 0.0) or 0.0)
+        _now_ts() - (getattr(app_state, "vrc_group_info_last_refresh", 0.0) or 0.0)
     ) >= GROUP_INFO_REFRESH_TTL_SECONDS
 
 
@@ -189,21 +189,21 @@ def _ensure_vrc_sync_state() -> None:
 def _is_connection_reset_error(exc: Exception) -> bool:
     text = str(exc or "")
     return (
-            isinstance(exc, ConnectionResetError)
-            or "ConnectionResetError" in text
-            or "Connection aborted" in text
-            or "forcibly closed by the remote host" in text
-            or "Max retries exceeded" in text
-            or "ProtocolError" in text
+        isinstance(exc, ConnectionResetError)
+        or "ConnectionResetError" in text
+        or "Connection aborted" in text
+        or "forcibly closed by the remote host" in text
+        or "Max retries exceeded" in text
+        or "ProtocolError" in text
     )
 
 
 async def _run_vrc_api_call(
-        func,
-        *args,
-        retries: int = VRCHAT_API_RETRIES,
-        base_delay: float = VRCHAT_API_BASE_DELAY_SECONDS,
-        **kwargs,
+    func,
+    *args,
+    retries: int = VRCHAT_API_RETRIES,
+    base_delay: float = VRCHAT_API_BASE_DELAY_SECONDS,
+    **kwargs,
 ):
     last_exc = None
 
@@ -250,10 +250,10 @@ async def _run_vrc_api_call(
 
 
 async def _send_rate_limited_error(
-        title: str,
-        exc: Exception,
-        attr_name: str,
-        cooldown_seconds: int = 300,
+    title: str,
+    exc: Exception,
+    attr_name: str,
+    cooldown_seconds: int = 300,
 ) -> None:
     _ensure_vrc_sync_state()
 
@@ -315,12 +315,12 @@ def _is_vrc_user_recently_active(user_id: str) -> bool:
 # ============================================================
 
 def _set_pipeline_presence(
-        user_id: str,
-        *,
-        online: bool,
-        source_event: str,
-        location: str | None = None,
-        platform: str | None = None,
+    user_id: str,
+    *,
+    online: bool,
+    source_event: str,
+    location: str | None = None,
+    platform: str | None = None,
 ) -> bool:
     _ensure_pipeline_state()
 
@@ -333,10 +333,10 @@ def _set_pipeline_presence(
     new_platform = str(platform or "").strip().lower()
 
     changed = (
-            old.get("online") != bool(online)
-            or old.get("location") != new_location
-            or old.get("platform") != new_platform
-            or old.get("source_event") != source_event
+        old.get("online") != bool(online)
+        or old.get("location") != new_location
+        or old.get("platform") != new_platform
+        or old.get("source_event") != source_event
     )
 
     app_state.vrc_pipeline_friend_presence[user_id] = {
@@ -585,22 +585,25 @@ def _handle_pipeline_event(payload: dict) -> None:
 
     elif event_type == "friend-active":
         effective_platform = platform or "web"
+
         changed = _set_pipeline_presence(
             user_id,
-            online=False,
+            online=True,
             source_event=event_type,
             location=location,
             platform=effective_platform,
         )
+
         asyncio.create_task(
             process_user_status(
                 user_id=user_id,
-                ws_online=False,
-                friend_presence=False,
+                ws_online=None,
+                friend_presence=True,
                 user_status="active",
                 last_platform=effective_platform,
             )
         )
+
         if changed:
             log.info(
                 "pipeline friend-active user_id=%s platform=%r",
@@ -654,11 +657,11 @@ async def _pipeline_receiver_loop() -> None:
             log.info("pipeline connecting...")
 
             async with websockets.connect(
-                    url,
-                    additional_headers=_build_pipeline_headers(),
-                    ping_interval=20,
-                    ping_timeout=20,
-                    max_size=2**20,
+                url,
+                additional_headers=_build_pipeline_headers(),
+                ping_interval=20,
+                ping_timeout=20,
+                max_size=2**20,
             ) as ws:
                 app_state.vrc_pipeline_ws = ws
                 app_state.vrc_pipeline_connected = True
@@ -993,11 +996,11 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                     new_cache[user_id] = _member_role_names_from_obj(member)
 
                     for field in (
-                            "display_name",
-                            "user_display_name",
-                            "username",
-                            "user_name",
-                            "name",
+                        "display_name",
+                        "user_display_name",
+                        "username",
+                        "user_name",
+                        "name",
                     ):
                         if value := str(getattr(member, field, None) or "").strip():
                             app_state.target_name_cache[user_id] = value
@@ -1099,8 +1102,8 @@ async def ensure_vrc_group_cache_ready() -> None:
 # ============================================================
 
 async def resolve_vrchat_user_id(
-        vrchat_username: str | None = None,
-        vrchat_user_id: str | None = None,
+    vrchat_username: str | None = None,
+    vrchat_user_id: str | None = None,
 ) -> str | None:
     if explicit_id := _normalize_vrc_user_id(vrchat_user_id):
         return explicit_id
@@ -1143,10 +1146,10 @@ async def _fetch_vrchat_presence_snapshot(resolved_user_id: str) -> tuple[str, s
 
 
 def _classify_presence(
-        raw_status: str,
-        location: str,
-        state: str,
-        last_platform: str,
+    raw_status: str,
+    location: str,
+    state: str,
+    last_platform: str,
 ) -> tuple[bool, bool]:
     offline_values = {"offline", "offline:offline"}
     hidden_locations = {"", "private", "traveling"}
@@ -1183,8 +1186,8 @@ def _classify_presence(
 # ============================================================
 
 async def get_vrchat_user_status(
-        vrchat_username: str | None = None,
-        vrchat_user_id: str | None = None,
+    vrchat_username: str | None = None,
+    vrchat_user_id: str | None = None,
 ) -> tuple[bool, str | None, str | None]:
     if vrchat_cooldown_active():
         log.debug("status check skipped: cooldown active")
@@ -1280,8 +1283,8 @@ async def get_vrchat_user_status(
 
 
 async def is_vrchat_user_online(
-        vrchat_username: str | None = None,
-        vrchat_user_id: str | None = None,
+    vrchat_username: str | None = None,
+    vrchat_user_id: str | None = None,
 ) -> bool:
     resolved_user_id = await resolve_vrchat_user_id(
         vrchat_username=vrchat_username,
@@ -1485,7 +1488,6 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
     results: list[dict] = []
 
     for user_id, roles in (app_state.vrc_group_member_roles or {}).items():
-
         normalized_roles = [
             str(r).strip().casefold()
             for r in (roles or [])
@@ -1495,8 +1497,8 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
             continue
 
         display_name = (
-                app_state.target_name_cache.get(user_id)
-                or f"User {str(user_id).replace('usr_', '')[:8]}"
+            app_state.target_name_cache.get(user_id)
+            or f"User {str(user_id).replace('usr_', '')[:8]}"
         )
 
         results.append({
