@@ -16,8 +16,8 @@
       "warn": 98,
       "kick": 53,
       "ban": 20,
-      "invite": 39,
-      "invite_accept": 39,
+      "invite": 40,
+      "invite_accept": 40,
       "points": 323
     },
     "usr_3d664c85-ce46-4441-9a92-5a58946098c3": {
@@ -168,8 +168,8 @@
       "warn": 0,
       "kick": 0,
       "ban": 0,
-      "invite": 0,
-      "invite_accept": 0,
+      "invite": 1,
+      "invite_accept": 1,
       "points": 0
     }
   },
