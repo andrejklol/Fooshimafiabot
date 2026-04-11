@@ -809,7 +809,6 @@ def _resolve_target_name(entry, description, target_id, event_type):
     if _is_world_target(target_id):
         return "World Instance"
 
-    # FIX: group id → group name
     if str(target_id).startswith("grp_"):
         group_cache = getattr(app_state, "group_cache", None)
 
@@ -817,13 +816,38 @@ def _resolve_target_name(entry, description, target_id, event_type):
             cached = group_cache.get(target_id)
 
             if isinstance(cached, dict):
-                cached = (
+                name = (
                     cached.get("name")
                     or cached.get("displayName")
+                    or cached.get("group_name")
                 )
+                if name:
+                    return clean_display_name(name)
 
             if isinstance(cached, str) and cached.strip():
                 return clean_display_name(cached)
+
+            for group in group_cache.values():
+                if not isinstance(group, dict):
+                    continue
+
+                gid = (
+                    group.get("id")
+                    or group.get("groupId")
+                    or group.get("group_id")
+                )
+
+                if gid != target_id:
+                    continue
+
+                name = (
+                    group.get("name")
+                    or group.get("displayName")
+                    or group.get("group_name")
+                )
+
+                if name:
+                    return clean_display_name(name)
 
     if not target_name:
         return str(target_id)
