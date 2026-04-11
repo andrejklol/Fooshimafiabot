@@ -23,9 +23,10 @@ venv/
 .cache/
 
 # =========================
-# RUNTIME DATA (IGNORE CHANGES)
+# RUNTIME DATA (IGNORE ONLY THESE FILES)
 # =========================
-Discord/data/*.json
+Discord/data/leaderboard.json
+Discord/data/repeat_offenders.json
 
 # =========================
 # LOG FILES
