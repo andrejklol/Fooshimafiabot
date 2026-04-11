@@ -23,7 +23,7 @@ venv/
 .cache/
 
 # =========================
-# RUNTIME DATA (IGNORE ONLY THESE FILES)
+# RUNTIME DATA (AUTO GENERATED ON HOST)
 # =========================
 Discord/data/leaderboard.json
 Discord/data/repeat_offenders.json
