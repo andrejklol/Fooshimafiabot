@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 
-BASE_DIR = Path("data")
+BASE_DIR = Path(__file__).resolve().parents[2] / "data"
 
 DATA_FILE = BASE_DIR / "repeat_offenders.json"
 TEMPLATE_FILE = BASE_DIR / "repeat_offenders.template.json"
