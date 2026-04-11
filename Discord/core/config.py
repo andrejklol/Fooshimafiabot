@@ -114,7 +114,7 @@ STAFF_ALERT_ORDER = {
             "Fooshi Soldier",
             [
                 {"discord_id": 388783101184180224, "vrchat_user_id": "usr_8c95ece0-3e42-4b78-9036-5fc75aa5ca3c"},
-                {"discord_id": 1344857878284075031, "vrchat_user_id": "usr_5e59ad1d-053f-461e-a301-45dc39cb0b38"},
+                {"discord_id": 1344857878284075031, "vrchat_user_id": "usr_3806653f-d199-475c-aca0-b17826d84964"},
             ],
         ),
         (
