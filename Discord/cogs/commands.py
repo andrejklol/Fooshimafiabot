@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from core.cache import app_state
 from core.config import OWNER_USER_ID
-from core.embeds import info_embed, success_embed, warning_embed
+from core.embeds import info_embed, warning_embed
 from core.utils import (
     format_dt,
     format_remaining_cooldown,
@@ -27,11 +27,11 @@ class General(commands.Cog):
     # ============================================================
 
     async def _send_general_error(
-            self,
-            ctx,
-            user_title: str,
-            log_title: str,
-            exc: Exception,
+        self,
+        ctx,
+        user_title: str,
+        log_title: str,
+        exc: Exception,
     ):
         embed = warning_embed(user_title, str(exc))
         await respond(ctx, embed=embed, ephemeral=True)
@@ -61,7 +61,6 @@ class General(commands.Cog):
         description="Show VRChat + bot health status",
     )
     async def vrcstatus(self, ctx):
-
         embed = info_embed("System Health")
 
         # --------------------------------------------------------
@@ -69,19 +68,14 @@ class General(commands.Cog):
         # --------------------------------------------------------
 
         if app_state.vrc_client and app_state.vrc_auth_api:
-
             if vrchat_cooldown_active():
-
                 embed.add_field(
                     name="VRChat",
                     value=f"Cooldown active\n`{format_remaining_cooldown()}`",
                     inline=False,
                 )
-
             else:
-
                 try:
-
                     user = await run_blocking(
                         app_state.vrc_auth_api.get_current_user
                     )
@@ -93,7 +87,6 @@ class General(commands.Cog):
                     )
 
                 except Exception as exc:
-
                     embed.add_field(
                         name="VRChat",
                         value=f"API error\n`{str(exc)[:120]}`",
@@ -104,9 +97,7 @@ class General(commands.Cog):
                         "VRChat Status Error",
                         exc,
                     )
-
         else:
-
             embed.add_field(
                 name="VRChat",
                 value="Not connected",
@@ -147,11 +138,11 @@ class General(commands.Cog):
 
         staff_data = leaderboard_data.get("staff", {})
 
-        total_warns = sum(s["warn"] for s in staff_data.values())
-        total_kicks = sum(s["kick"] for s in staff_data.values())
-        total_bans = sum(s["ban"] for s in staff_data.values())
-        total_invites = sum(s["invite"] for s in staff_data.values())
-        total_accepts = sum(s["invite_accept"] for s in staff_data.values())
+        total_warns = sum(s.get("warn", 0) for s in staff_data.values())
+        total_kicks = sum(s.get("kick", 0) for s in staff_data.values())
+        total_bans = sum(s.get("ban", 0) for s in staff_data.values())
+        total_invites = sum(s.get("invite", 0) for s in staff_data.values())
+        total_accepts = sum(s.get("invite_accept", 0) for s in staff_data.values())
 
         embed.add_field(
             name="Tracked Actions",
@@ -190,7 +181,6 @@ class General(commands.Cog):
         )
 
         if app_state.last_api_error:
-
             embed.add_field(
                 name="Last API Error",
                 value=app_state.last_api_error[:200],
@@ -208,9 +198,7 @@ class General(commands.Cog):
         description="Show all commands",
     )
     async def help_command(self, ctx):
-
         try:
-
             embed = info_embed("Bot Commands")
 
             embed.add_field(
@@ -233,7 +221,6 @@ class General(commands.Cog):
             )
 
             if ctx.author.id == OWNER_USER_ID:
-
                 embed.add_field(
                     name="Debug",
                     value=(
@@ -257,7 +244,6 @@ class General(commands.Cog):
             await respond(ctx, embed=embed, ephemeral=True)
 
         except Exception as exc:
-
             await self._send_general_error(
                 ctx,
                 "Help Command Failed",
@@ -266,5 +252,28 @@ class General(commands.Cog):
             )
 
 
+# Backward-compatible name expected by main.py
+class Commands(General):
+    pass
+
+
+async def perform_command_sync(bot: commands.Bot) -> bool:
+    """
+    Sync slash commands if enabled.
+    Returns True if a sync was attempted, False if skipped.
+    """
+
+    enabled = os.getenv("STARTUP_COMMAND_SYNC", "0").strip().lower()
+    if enabled not in {"1", "true", "yes", "on"}:
+        return False
+
+    try:
+        await bot.tree.sync()
+        return True
+    except Exception as exc:
+        await send_error_log("Command Sync Error", exc)
+        return False
+
+
 async def setup(bot: commands.Bot):
-    await bot.add_cog(General(bot))
+    await bot.add_cog(Commands(bot))
