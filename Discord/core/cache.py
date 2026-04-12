@@ -76,6 +76,12 @@ class AppState:
         self.vrchat_group_members = {}
         self.vrchat_staff_role_ids = set()
 
+        # Member role id cache
+        self.vrc_group_member_role_ids = {}
+
+        # Group info cache
+        self.group_cache = {}
+
         # Legacy / compatibility aliases used by different files
         self.group_roles = self.vrchat_group_roles
         self.group_members = self.vrchat_group_members
@@ -90,6 +96,15 @@ class AppState:
 
         self.vrc_group_roles_last_refresh = 0.0
         self.vrc_group_members_last_refresh = 0.0
+        self.vrc_group_info_last_refresh = 0.0
+
+        self.vrc_group_roles_last_error_ts = 0.0
+        self.vrc_group_members_last_error_ts = 0.0
+        self.vrc_group_info_last_error_ts = 0.0
+
+        self.vrc_group_roles_refresh_lock = asyncio.Lock()
+        self.vrc_group_members_refresh_lock = asyncio.Lock()
+        self.vrc_group_info_refresh_lock = asyncio.Lock()
 
         # ============================================================
         # STATUS / ONLINE CACHE
