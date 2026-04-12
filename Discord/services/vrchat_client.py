@@ -4,8 +4,8 @@ import logging
 import os
 import time
 from http.cookies import SimpleCookie
-from urllib.parse import quote
 from typing import Any
+from urllib.parse import quote
 
 import urllib3
 import websockets
