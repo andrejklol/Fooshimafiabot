@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 from core.cache import app_state
 from core.config import GUILD_ID, STAFF_ALERT_ORDER
@@ -7,7 +8,6 @@ from services.vrchat_client import (
     get_all_vrc_staff_members,
     vrc_user_is_staff,
 )
-
 from services.offenders.tracking import (
     add_warn,
     add_kick,
@@ -16,7 +16,6 @@ from services.offenders.tracking import (
 
 from .scoring import get_action_score
 from .storage import leaderboard_data, save_leaderboard_data
-
 
 log = logging.getLogger("leaderboard_processors")
 
@@ -49,7 +48,7 @@ def _ensure_archive_section() -> None:
     _ensure_section("archive")
 
 
-def _coerce_int(value, default: int = 0) -> int:
+def _coerce_int(value: Any, default: int = 0) -> int:
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -69,10 +68,8 @@ def _is_placeholder_name(name: str | None, staff_id: str | None = None) -> bool:
     if text.lower() == "unknown":
         return True
 
-    if staff_id:
-        fallback = _fallback_name_for_staff(staff_id)
-        if text == fallback:
-            return True
+    if staff_id and text == _fallback_name_for_staff(staff_id):
+        return True
 
     return False
 
@@ -99,10 +96,9 @@ def _pick_best_staff_name(
 
 
 def _build_default_staff_entry(staff_id: str, staff_name: str) -> dict:
-    safe_name = _pick_best_staff_name(staff_id, staff_name)
     return {
         "id": staff_id,
-        "name": safe_name,
+        "name": _pick_best_staff_name(staff_id, staff_name),
         "warn": 0,
         "kick": 0,
         "ban": 0,
@@ -136,7 +132,6 @@ def _normalize_staff_entry(existing: dict, staff_id: str, staff_name: str) -> bo
         incoming_name=staff_name,
         existing_name=existing.get("name"),
     )
-
     if existing.get("name") != best_name:
         existing["name"] = best_name
         changed = True
@@ -147,11 +142,9 @@ def _normalize_staff_entry(existing: dict, staff_id: str, staff_name: str) -> bo
 def _ensure_staff(section: str, staff_id: str, staff_name: str) -> bool:
     _ensure_section(section)
 
-    default_entry = _build_default_staff_entry(staff_id, staff_name)
     existing = leaderboard_data[section].get(staff_id)
-
     if not isinstance(existing, dict):
-        leaderboard_data[section][staff_id] = default_entry
+        leaderboard_data[section][staff_id] = _build_default_staff_entry(staff_id, staff_name)
         return True
 
     return _normalize_staff_entry(existing, staff_id, staff_name)
@@ -199,14 +192,27 @@ def _member_has_discord_staff_role(member) -> bool:
     )
 
 
+def _should_skip_archive(previous_staff_count: int, fetched_staff_count: int) -> bool:
+    if previous_staff_count <= 0:
+        return False
+
+    if fetched_staff_count == 0:
+        return True
+
+    if fetched_staff_count < max(3, int(previous_staff_count * 0.7)):
+        return True
+
+    return False
+
+
 async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
     _ensure_section("staff")
     _ensure_archive_section()
 
     changed = False
-    to_archive = []
+    to_archive: list[str] = []
 
-    guild = bot.get_guild(GUILD_ID) if bot else None
+    guild = bot.get_guild(GUILD_ID) if bot and hasattr(bot, "get_guild") else None
     vrc_to_discord = _build_vrc_to_discord_map()
 
     for staff_id in list(leaderboard_data["staff"].keys()):
@@ -267,15 +273,22 @@ def _ensure_staff_in_needed_sections(
     changed = False
 
     if monthly_only:
-        changed = _ensure_staff("monthly", staff_id, staff_name) or changed
-    else:
-        restored = _restore_archived_staff_if_present(staff_id, staff_name)
-        changed = restored or changed
+        return _ensure_staff("monthly", staff_id, staff_name)
 
-        changed = _ensure_staff("staff", staff_id, staff_name) or changed
-        changed = _ensure_staff("monthly", staff_id, staff_name) or changed
+    restored = _restore_archived_staff_if_present(staff_id, staff_name)
+    changed = restored or changed
+    changed = _ensure_staff("staff", staff_id, staff_name) or changed
+    changed = _ensure_staff("monthly", staff_id, staff_name) or changed
 
     return changed
+
+
+def _increment_stat(entry: dict, key: str, amount: int = 1) -> None:
+    entry[key] = _coerce_int(entry.get(key, 0)) + amount
+
+
+def _add_points(entry: dict, action: str) -> None:
+    entry["points"] = _coerce_int(entry.get("points", 0)) + get_action_score(action)
 
 
 def _apply_action_to_section(
@@ -292,23 +305,18 @@ def _apply_action_to_section(
     staff_entry = leaderboard_data[section][staff_id]
 
     if action == "invite":
-        staff_entry["invite"] = _coerce_int(staff_entry.get("invite", 0)) + 1
+        _increment_stat(staff_entry, "invite")
         return
 
     if action == "invite_accept":
-        staff_entry["invite_accept"] = _coerce_int(staff_entry.get("invite_accept", 0)) + 1
+        _increment_stat(staff_entry, "invite_accept")
+        # Keep invite count matched to accepted invites for leaderboard simplicity.
         staff_entry["invite"] = _coerce_int(staff_entry.get("invite_accept", 0))
-        staff_entry["points"] = (
-            _coerce_int(staff_entry.get("points", 0))
-            + get_action_score("invite_accept")
-        )
+        _add_points(staff_entry, "invite_accept")
         return
 
-    staff_entry[action] = _coerce_int(staff_entry.get(action, 0)) + 1
-    staff_entry["points"] = (
-        _coerce_int(staff_entry.get("points", 0))
-        + get_action_score(action)
-    )
+    _increment_stat(staff_entry, action)
+    _add_points(staff_entry, action)
 
 
 def _apply_action(
@@ -339,7 +347,6 @@ def _get_raw_event_type(entry) -> str:
 
 def _get_actor(entry):
     actor = getattr(entry, "actor", None)
-
     if actor is not None:
         return actor.id, getattr(actor, "displayName", "Unknown")
 
@@ -347,34 +354,32 @@ def _get_actor(entry):
 
 
 def _get_target_id(entry):
-    return (
-        getattr(entry, "targetId", None)
-        or getattr(entry, "target_user_id", None)
-    )
+    return getattr(entry, "targetId", None) or getattr(entry, "target_user_id", None)
 
 
 def _get_target_name(entry):
     target = getattr(entry, "target", None)
-
     if target:
         return getattr(target, "displayName", None)
 
     return None
 
 
-def _get_action_type(entry):
+def _get_action_type(entry) -> str:
     raw = _get_raw_event_type(entry)
 
-    if (
-        "invite.accept" in raw
-        or "inviteaccepted" in raw
-        or "member.add" in raw
-        or "member.join" in raw
-        or "user.join" in raw
-        or "group.member.add" in raw
-        or "group.member.join" in raw
-        or "group.user.join" in raw
-    ):
+    invite_accept_markers = (
+        "invite.accept",
+        "inviteaccepted",
+        "member.add",
+        "member.join",
+        "user.join",
+        "group.member.add",
+        "group.member.join",
+        "group.user.join",
+    )
+
+    if any(marker in raw for marker in invite_accept_markers):
         return "invite_accept"
 
     if "invite" in raw and "accept" not in raw:
@@ -411,23 +416,19 @@ async def process_audit_log_entry(
     monthly_only: bool = False,
 ):
     action = _get_action_type(entry)
-
     if not action:
         return False, False
 
     actor_id, actor_name = _get_actor(entry)
-
     if not actor_id:
         return False, False
 
     actor_id = str(actor_id)
-
     if not await _is_staff_actor(actor_id):
         return False, False
 
     target_id = _get_target_id(entry)
     target_name = _get_target_name(entry)
-
     target_is_staff = False
 
     if target_id:
@@ -495,7 +496,6 @@ async def sync_all_vrc_staff_into_leaderboard(bot, force_refresh: bool = False) 
         ).strip()
 
         was_missing_before = staff_id not in leaderboard_data.get("staff", {})
-
         changed = _ensure_staff_in_needed_sections(
             staff_id,
             staff_name,
@@ -508,24 +508,18 @@ async def sync_all_vrc_staff_into_leaderboard(bot, force_refresh: bool = False) 
         if was_missing_before and staff_id in leaderboard_data.get("staff", {}):
             added += 1
 
-    should_archive = True
+    should_skip_archive = _should_skip_archive(previous_staff_count, fetched_staff_count)
 
-    if previous_staff_count > 0:
-        if fetched_staff_count == 0:
-            should_archive = False
-        elif fetched_staff_count < max(3, int(previous_staff_count * 0.7)):
-            should_archive = False
-
-    if should_archive:
-        archived_changed = await _archive_removed_staff(current_staff_ids, bot)
-        any_changed = archived_changed or any_changed
-    else:
+    if should_skip_archive:
         log.warning(
             "Skipped archive pass because fetched staff count looked suspicious "
             "(previous=%s, fetched=%s)",
             previous_staff_count,
             fetched_staff_count,
         )
+    else:
+        archived_changed = await _archive_removed_staff(current_staff_ids, bot)
+        any_changed = archived_changed or any_changed
 
     if any_changed:
         app_state.leaderboard_dirty = True
