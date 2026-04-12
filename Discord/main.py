@@ -17,7 +17,10 @@ from services.leaderboard.service import (
     seed_leaderboards,
 )
 from services.leaderboard.storage import leaderboard_data
-from services.offenders.storage import load_repeat_offenders
+from services.offenders.storage import (
+    load_repeat_offenders,
+    ensure_structure,
+)
 from services.vrchat_client import (
     login_vrchat,
     refresh_vrc_group_members,
@@ -53,6 +56,7 @@ bot = commands.Bot(
 def _has_existing_leaderboard_data() -> bool:
     return bool(leaderboard_data.get("staff"))
 
+
 # ============================================================
 # STARTUP
 # ============================================================
@@ -86,6 +90,7 @@ async def setup_hook():
             exc,
         )
 
+
 @bot.event
 async def on_ready():
     logger.info("Logged in as %s", bot.user)
@@ -109,6 +114,7 @@ async def on_ready():
 
     try:
         load_repeat_offenders()
+        ensure_structure()
         logger.info("Repeat offenders loaded.")
 
     except Exception as exc:
@@ -149,6 +155,7 @@ async def on_ready():
     app_state.startup_complete = True
     logger.info("Startup initialization complete.")
 
+
 # ============================================================
 # GLOBAL EVENT ERROR HANDLING
 # ============================================================
@@ -162,6 +169,7 @@ async def on_error(event, *args, **kwargs):
         f"Event Error: {event}",
         tb,
     )
+
 
 # ============================================================
 # RUN BOT
