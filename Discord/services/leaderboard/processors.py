@@ -34,8 +34,46 @@ def _fallback_name_for_staff(staff_id: str) -> str:
     return f"User {staff_id.replace('usr_', '')[:8]}"
 
 
+def _is_placeholder_name(name: str | None, staff_id: str | None = None) -> bool:
+    text = str(name or "").strip()
+
+    if not text:
+        return True
+
+    if text.lower() == "unknown":
+        return True
+
+    if staff_id:
+        fallback = _fallback_name_for_staff(staff_id)
+        if text == fallback:
+            return True
+
+    return False
+
+
+def _pick_best_staff_name(staff_id: str, incoming_name: str | None, existing_name: str | None = None) -> str:
+    incoming = str(incoming_name or "").strip()
+    existing = str(existing_name or "").strip()
+    fallback = _fallback_name_for_staff(staff_id)
+
+    # best case: real incoming name
+    if incoming and not _is_placeholder_name(incoming, staff_id):
+        return incoming
+
+    # otherwise preserve an existing real name
+    if existing and not _is_placeholder_name(existing, staff_id):
+        return existing
+
+    # otherwise keep existing placeholder if one exists
+    if existing:
+        return existing
+
+    # brand new entry fallback
+    return fallback
+
+
 def _build_default_staff_entry(staff_id: str, staff_name: str) -> dict:
-    safe_name = str(staff_name or "").strip() or _fallback_name_for_staff(staff_id)
+    safe_name = _pick_best_staff_name(staff_id, staff_name)
     return {
         "id": staff_id,
         "name": safe_name,
@@ -75,15 +113,14 @@ def _ensure_staff(section: str, staff_id: str, staff_name: str) -> bool:
         existing["id"] = staff_id
         changed = True
 
-    new_name = str(staff_name or "").strip()
-    fallback_name = _fallback_name_for_staff(staff_id)
+    best_name = _pick_best_staff_name(
+        staff_id,
+        incoming_name=staff_name,
+        existing_name=existing.get("name"),
+    )
 
-    if new_name and new_name.lower() != "unknown":
-        if existing.get("name") != new_name:
-            existing["name"] = new_name
-            changed = True
-    elif not existing.get("name"):
-        existing["name"] = fallback_name
+    if existing.get("name") != best_name:
+        existing["name"] = best_name
         changed = True
 
     return changed
@@ -120,27 +157,20 @@ def _apply_action_to_section(
 
     staff_entry = leaderboard_data[section][staff_id]
 
-    # invite sent
     if action == "invite":
         staff_entry["invite"] = _coerce_int(staff_entry.get("invite", 0)) + 1
         return
 
-    # invite accepted
     if action == "invite_accept":
         staff_entry["invite_accept"] = _coerce_int(staff_entry.get("invite_accept", 0)) + 1
-
-        # merged stat
         staff_entry["invite"] = _coerce_int(staff_entry.get("invite_accept", 0))
-
         staff_entry["points"] = (
             _coerce_int(staff_entry.get("points", 0))
             + get_action_score("invite_accept")
         )
         return
 
-    # warn/kick/ban
     staff_entry[action] = _coerce_int(staff_entry.get(action, 0)) + 1
-
     staff_entry["points"] = (
         _coerce_int(staff_entry.get("points", 0))
         + get_action_score(action)
@@ -208,6 +238,9 @@ def _get_action_type(entry):
         or "member.add" in raw
         or "member.join" in raw
         or "user.join" in raw
+        or "group.member.add" in raw
+        or "group.member.join" in raw
+        or "group.user.join" in raw
     ):
         return "invite_accept"
 
@@ -274,19 +307,15 @@ async def process_audit_log_entry(
         monthly_only=monthly_only,
     )
 
-    # prevent farming points on staff
     if action in _MOD_ACTIONS and target_is_staff:
         return True, False
 
-    # track repeat offenders properly
-    if action == "warn":
-        add_warn(target_id, target_name)
-
-    elif action == "kick":
-        add_kick(target_id, target_name)
-
-    elif action == "ban":
-        add_ban(target_id, target_name)
+    if action == "warn" and target_id:
+        add_warn(target_id, target_name or "Unknown")
+    elif action == "kick" and target_id:
+        add_kick(target_id, target_name or "Unknown")
+    elif action == "ban" and target_id:
+        add_ban(target_id, target_name or "Unknown")
 
     _apply_action(
         actor_id,
@@ -298,19 +327,13 @@ async def process_audit_log_entry(
     return True, False
 
 
-# ============================================================
-# SYNC ALL VRC STAFF INTO LEADERBOARD
-# ============================================================
-
 async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> int:
-
     added = 0
     any_changed = False
 
     vrc_members = await get_all_vrc_staff_members(force_refresh=force_refresh)
 
     for member in vrc_members or []:
-
         if not isinstance(member, dict):
             continue
 
@@ -320,7 +343,6 @@ async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> in
             or member.get("userId")
             or ""
         ).strip()
-
         if not staff_id:
             continue
 
