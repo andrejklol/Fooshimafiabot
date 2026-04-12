@@ -92,15 +92,38 @@ REPEAT_BAN_WINDOW_DAYS = int(os.getenv("REPEAT_BAN_WINDOW_DAYS", "30"))
 
 # ============================================================
 # VRCHAT STAFF ROLE NAMES
-# used to identify staff when role ids aren't cached yet
+# These are normalized internally (case insensitive)
+# Includes plural + alternate formatting safety
 # ============================================================
 
 VRC_STAFF_ROLE_NAMES = {
+
+    # God tier
     "godfooshi",
+    "god fooshi",
+
+    # Underboss
     "fooshi underboss",
+
+    # Consigliere variations
     "fooshi consigliere",
+    "fooshi consiglieri",
+
+    # Capo variations
     "fooshi capo",
+    "fooshi capos",
+
+    # Soldier variations
     "fooshi soldier",
+    "fooshi soldiers",
+
+    # fallback matches (extra safety)
+    "consigliere",
+    "consiglieri",
+    "capo",
+    "capos",
+    "soldier",
+    "soldiers",
 }
 
 # ============================================================
@@ -109,7 +132,9 @@ VRC_STAFF_ROLE_NAMES = {
 # ============================================================
 
 STAFF_ALERT_ORDER = {
+
     "warn": [
+
         (
             "Fooshi Soldier",
             [
@@ -117,6 +142,7 @@ STAFF_ALERT_ORDER = {
                 {"discord_id": 1344857878284075031, "vrchat_user_id": "usr_3806653f-d199-475c-aca0-b17826d84964"},
             ],
         ),
+
         (
             "Fooshi Capo",
             [
@@ -124,6 +150,7 @@ STAFF_ALERT_ORDER = {
                 {"discord_id": 933075890194235402, "vrchat_user_id": "usr_9252b0c1-586d-47c8-8282-314a30ef3eac"},
             ],
         ),
+
         (
             "Fooshi Consigliere",
             [
@@ -131,12 +158,14 @@ STAFF_ALERT_ORDER = {
                 {"discord_id": 1096271363007840369, "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"},
             ],
         ),
+
         (
             "Fooshi Underboss",
             [
                 {"discord_id": 638482686612078614, "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"},
             ],
         ),
+
         (
             "Godfooshi",
             [
@@ -146,6 +175,7 @@ STAFF_ALERT_ORDER = {
     ],
 
     "kick": [
+
         (
             "Fooshi Capo",
             [
@@ -153,6 +183,7 @@ STAFF_ALERT_ORDER = {
                 {"discord_id": 933075890194235402, "vrchat_user_id": "usr_9252b0c1-586d-47c8-8282-314a30ef3eac"},
             ],
         ),
+
         (
             "Fooshi Consigliere",
             [
@@ -160,12 +191,14 @@ STAFF_ALERT_ORDER = {
                 {"discord_id": 1096271363007840369, "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"},
             ],
         ),
+
         (
             "Fooshi Underboss",
             [
                 {"discord_id": 638482686612078614, "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"},
             ],
         ),
+
         (
             "Godfooshi",
             [
@@ -175,6 +208,7 @@ STAFF_ALERT_ORDER = {
     ],
 
     "ban": [
+
         (
             "Fooshi Consigliere",
             [
@@ -182,12 +216,14 @@ STAFF_ALERT_ORDER = {
                 {"discord_id": 1096271363007840369, "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"},
             ],
         ),
+
         (
             "Fooshi Underboss",
             [
                 {"discord_id": 638482686612078614, "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"},
             ],
         ),
+
         (
             "Godfooshi",
             [
@@ -201,4 +237,7 @@ STAFF_ALERT_ORDER = {
 # COMMAND SYNC
 # ============================================================
 
-SYNC_COMMANDS_ON_STARTUP = os.getenv("SYNC_COMMANDS_ON_STARTUP", "false").lower() == "true"
+SYNC_COMMANDS_ON_STARTUP = os.getenv(
+    "SYNC_COMMANDS_ON_STARTUP",
+    "false"
+).lower() == "true"
