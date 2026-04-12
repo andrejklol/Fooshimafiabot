@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 from core.cache import app_state
+from core.config import GUILD_ID, STAFF_ALERT_ORDER
 from services.vrchat_client import (
     get_all_vrc_staff_members,
     vrc_user_is_staff,
@@ -21,6 +22,18 @@ log = logging.getLogger("leaderboard_processors")
 
 _MOD_ACTIONS = {"warn", "kick", "ban"}
 _SUPPORTED_ACTIONS = {"warn", "kick", "ban", "invite", "invite_accept"}
+
+DISCORD_STAFF_ROLE_NAMES = {
+    "godfooshi",
+    "god fooshi",
+    "fooshi underboss",
+    "fooshi consigliere",
+    "fooshi consiglieri",
+    "fooshi capo",
+    "fooshi capos",
+    "fooshi soldier",
+    "fooshi soldiers",
+}
 
 
 def _utc_now_iso() -> str:
@@ -164,16 +177,68 @@ def _restore_archived_staff_if_present(staff_id: str, staff_name: str) -> bool:
     return True
 
 
-def _archive_removed_staff(current_staff_ids: set[str]) -> bool:
+def _build_vrc_to_discord_map() -> dict[str, int]:
+    mapping: dict[str, int] = {}
+
+    for action_groups in STAFF_ALERT_ORDER.values():
+        for _, members in action_groups:
+            for member in members:
+                vrchat_user_id = str(member.get("vrchat_user_id") or "").strip()
+                discord_id = member.get("discord_id")
+
+                if vrchat_user_id and discord_id:
+                    mapping[vrchat_user_id] = int(discord_id)
+
+    return mapping
+
+
+def _member_has_discord_staff_role(member) -> bool:
+    return any(
+        str(role.name).strip().casefold() in DISCORD_STAFF_ROLE_NAMES
+        for role in getattr(member, "roles", [])
+    )
+
+
+async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
     _ensure_section("staff")
     _ensure_archive_section()
 
     changed = False
     to_archive = []
 
+    guild = bot.get_guild(GUILD_ID) if bot else None
+    vrc_to_discord = _build_vrc_to_discord_map()
+
     for staff_id in list(leaderboard_data["staff"].keys()):
-        if staff_id not in current_staff_ids:
-            to_archive.append(staff_id)
+        if staff_id in current_staff_ids:
+            continue
+
+        should_keep = False
+        display_name = leaderboard_data["staff"].get(staff_id, {}).get("name", staff_id)
+
+        if guild:
+            discord_id = vrc_to_discord.get(staff_id)
+            if discord_id:
+                member = guild.get_member(discord_id)
+
+                if member is None:
+                    try:
+                        member = await guild.fetch_member(discord_id)
+                    except Exception:
+                        member = None
+
+                if member and _member_has_discord_staff_role(member):
+                    should_keep = True
+                    log.warning(
+                        "Skipped archive for %s (%s) because Discord staff role is still present",
+                        display_name,
+                        staff_id,
+                    )
+
+        if should_keep:
+            continue
+
+        to_archive.append(staff_id)
 
     for staff_id in to_archive:
         entry = leaderboard_data["staff"].pop(staff_id, None)
@@ -186,7 +251,7 @@ def _archive_removed_staff(current_staff_ids: set[str]) -> bool:
         changed = True
 
         log.warning(
-            "Archived staff member due to missing from VRC sync: %s (%s)",
+            "Archived staff member due to missing from VRC sync and no Discord staff role: %s (%s)",
             archived_entry.get("name", "Unknown"),
             staff_id,
         )
@@ -395,7 +460,7 @@ async def process_audit_log_entry(
     return True, False
 
 
-async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> int:
+async def sync_all_vrc_staff_into_leaderboard(bot, force_refresh: bool = False) -> int:
     added = 0
     any_changed = False
     current_staff_ids: set[str] = set()
@@ -452,7 +517,7 @@ async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> in
             should_archive = False
 
     if should_archive:
-        archived_changed = _archive_removed_staff(current_staff_ids)
+        archived_changed = await _archive_removed_staff(current_staff_ids, bot)
         any_changed = archived_changed or any_changed
     else:
         log.warning(
