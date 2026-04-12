@@ -1,6 +1,5 @@
 import logging
 import uuid
-from datetime import timedelta
 
 from core.cache import app_state
 from core.utils import utc_now
@@ -12,22 +11,19 @@ log = logging.getLogger("status_pipeline")
 # TRACE HELPERS
 # ============================================================
 
-DEBUG_PIPELINE = False   # toggle detailed logs
+DEBUG_PIPELINE = False  # toggle detailed logs
 
 
 def new_trace_id() -> str:
     return uuid.uuid4().hex[:8]
 
 
-def log_path(trace_id: str, step: str, level="debug", **fields):
+def log_path(trace_id: str, step: str, level: str = "debug", **fields) -> None:
     if not DEBUG_PIPELINE and level == "debug":
         return
 
     parts = [f"[trace={trace_id}]", f"[step={step}]"]
-
-    for k, v in fields.items():
-        parts.append(f"{k}={v}")
-
+    parts.extend(f"{key}={value}" for key, value in fields.items())
     message = " ".join(parts)
 
     if level == "info":
@@ -55,7 +51,7 @@ KNOWN_PLATFORMS = {
     "standalonewindows",
     "vive",
     "oculus",
-    "web",   # added so active+web can count as supported
+    "web",  # allows active+web to count as supported
 }
 
 
@@ -63,13 +59,17 @@ KNOWN_PLATFORMS = {
 # SIGNAL EVALUATION
 # ============================================================
 
+def _normalized_signal_text(value) -> str:
+    return str(value or "").strip().lower()
+
+
 def decide_online_with_reason(signals: dict) -> tuple[bool, str]:
     ws_online = signals.get("ws_online")
     friend_presence = signals.get("friend_presence")
     mod_action_recent = signals.get("mod_action_recent")
     audit_actor_recent = signals.get("audit_actor_recent")
-    user_status = (signals.get("user_status") or "").strip().lower()
-    last_platform = (signals.get("last_platform") or "").strip().lower()
+    user_status = _normalized_signal_text(signals.get("user_status"))
+    last_platform = _normalized_signal_text(signals.get("last_platform"))
 
     # Tier 1
     if ws_online is True:
@@ -107,6 +107,77 @@ def decide_online_with_reason(signals: dict) -> tuple[bool, str]:
 # MAIN PIPELINE ENTRY
 # ============================================================
 
+def _build_signal_snapshot(
+    *,
+    ws_online: bool | None,
+    friend_presence: bool | None,
+    mod_action_recent: bool | None,
+    audit_actor_recent: bool | None,
+    user_status: str | None,
+    last_platform: str | None,
+) -> dict:
+    return {
+        "ws_online": ws_online,
+        "friend_presence": friend_presence,
+        "mod_action_recent": mod_action_recent,
+        "audit_actor_recent": audit_actor_recent,
+        "user_status": user_status,
+        "last_platform": last_platform,
+    }
+
+
+def _build_cache_entry(online: bool, reason: str) -> dict:
+    return {
+        "online": online,
+        "reason": reason,
+        "updated_at": utc_now(),
+    }
+
+
+def _log_status_result(
+    *,
+    trace_id: str,
+    previous: dict | None,
+    user_id: str,
+    final_online: bool,
+    reason: str,
+    signals: dict,
+) -> None:
+    fields = {
+        "user_id": user_id,
+        "reason": reason,
+        **signals,
+    }
+
+    if previous is None:
+        log_path(
+            trace_id,
+            "status.initial",
+            level="info",
+            online=final_online,
+            **fields,
+        )
+        return
+
+    if previous.get("online") != final_online:
+        log_path(
+            trace_id,
+            "status.changed",
+            level="info",
+            old=previous.get("online"),
+            new=final_online,
+            **fields,
+        )
+        return
+
+    log_path(
+        trace_id,
+        "status.same",
+        online=final_online,
+        **fields,
+    )
+
+
 async def process_user_status(
     user_id: str,
     ws_online: bool | None = None,
@@ -118,75 +189,30 @@ async def process_user_status(
 ):
     trace_id = new_trace_id()
 
-    signals = {
-        "ws_online": ws_online,
-        "friend_presence": friend_presence,
-        "mod_action_recent": mod_action_recent,
-        "audit_actor_recent": audit_actor_recent,
-        "user_status": user_status,
-        "last_platform": last_platform,
-    }
+    signals = _build_signal_snapshot(
+        ws_online=ws_online,
+        friend_presence=friend_presence,
+        mod_action_recent=mod_action_recent,
+        audit_actor_recent=audit_actor_recent,
+        user_status=user_status,
+        last_platform=last_platform,
+    )
 
     final_online, reason = decide_online_with_reason(signals)
-
     previous = app_state.user_online_cache.get(user_id)
 
-    app_state.user_online_cache[user_id] = {
-        "online": final_online,
-        "reason": reason,
-        "updated_at": utc_now(),
-    }
+    app_state.user_online_cache[user_id] = _build_cache_entry(
+        online=final_online,
+        reason=reason,
+    )
 
-    # ========================================================
-    # ONLY LOG WHEN STATE CHANGES
-    # ========================================================
-
-    if previous is None:
-        log_path(
-            trace_id,
-            "status.initial",
-            level="info",
-            user_id=user_id,
-            online=final_online,
-            reason=reason,
-            ws_online=ws_online,
-            friend_presence=friend_presence,
-            mod_action_recent=mod_action_recent,
-            audit_actor_recent=audit_actor_recent,
-            user_status=user_status,
-            last_platform=last_platform,
-        )
-
-    elif previous["online"] != final_online:
-        log_path(
-            trace_id,
-            "status.changed",
-            level="info",
-            user_id=user_id,
-            old=previous["online"],
-            new=final_online,
-            reason=reason,
-            ws_online=ws_online,
-            friend_presence=friend_presence,
-            mod_action_recent=mod_action_recent,
-            audit_actor_recent=audit_actor_recent,
-            user_status=user_status,
-            last_platform=last_platform,
-        )
-
-    else:
-        log_path(
-            trace_id,
-            "status.same",
-            user_id=user_id,
-            online=final_online,
-            reason=reason,
-            ws_online=ws_online,
-            friend_presence=friend_presence,
-            mod_action_recent=mod_action_recent,
-            audit_actor_recent=audit_actor_recent,
-            user_status=user_status,
-            last_platform=last_platform,
-        )
+    _log_status_result(
+        trace_id=trace_id,
+        previous=previous,
+        user_id=user_id,
+        final_online=final_online,
+        reason=reason,
+        signals=signals,
+    )
 
     return final_online
