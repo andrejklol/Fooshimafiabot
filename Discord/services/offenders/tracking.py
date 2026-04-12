@@ -1,44 +1,44 @@
-from .storage import repeat_offenders
+from .storage import repeat_offenders, save_repeat_offenders
 
 
 def _ensure_user(user_id: str, username: str):
-
     if user_id not in repeat_offenders:
-
         repeat_offenders[user_id] = {
             "name": username,
             "warn": 0,
             "kick": 0,
             "ban": 0,
         }
+    else:
+        repeat_offenders[user_id]["name"] = username
 
 
 def add_warn(user_id: str, username: str):
-
     _ensure_user(user_id, username)
-
     repeat_offenders[user_id]["warn"] += 1
+    save_repeat_offenders()
 
 
 def add_kick(user_id: str, username: str):
-
     _ensure_user(user_id, username)
-
     repeat_offenders[user_id]["kick"] += 1
+    save_repeat_offenders()
 
 
 def add_ban(user_id: str, username: str):
-
     _ensure_user(user_id, username)
-
     repeat_offenders[user_id]["ban"] += 1
+    save_repeat_offenders()
 
 
 def is_repeat_offender(user_id: str):
-
     data = repeat_offenders.get(user_id)
 
     if not data:
         return False
 
-    return data["warn"] >= 3 or data["kick"] >= 2 or data["ban"] >= 1
+    return (
+        data.get("warn", 0) >= 3
+        or data.get("kick", 0) >= 2
+        or data.get("ban", 0) >= 1
+    )
