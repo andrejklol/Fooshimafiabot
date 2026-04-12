@@ -217,6 +217,7 @@ def _ensure_vrc_sync_state() -> None:
     _ensure_attr_default("group_cache", dict)
     _ensure_attr_default("vrc_group_info_last_refresh", 0.0)
     _ensure_attr_default("vrc_group_member_role_ids", dict)
+    _ensure_attr_default("vrchat_staff_role_ids", set)
 
 
 # ============================================================
@@ -1115,16 +1116,22 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                 )
                 return
 
-            # preserve old known staff if VRChat returned a partial membership set
+            wanted_roles = {str(x).strip().casefold() for x in VRC_STAFF_ROLE_NAMES}
+            staff_role_ids = {str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())}
+
             preserved_staff = 0
             for user_id, old_roles in old_role_cache.items():
                 if user_id in new_role_cache:
                     continue
 
                 old_role_ids = old_role_id_cache.get(user_id, [])
-                old_is_staff = is_cached_vrc_user_staff(user_id) or any(
-                    rid in {str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())}
-                    for rid in old_role_ids
+
+                old_is_staff = any(
+                    str(role).strip().casefold() in wanted_roles
+                    for role in (old_roles or [])
+                ) or any(
+                    str(rid).strip() in staff_role_ids
+                    for rid in (old_role_ids or [])
                 )
 
                 if old_is_staff:
@@ -1551,10 +1558,11 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
     results: list[dict] = []
 
     for user_id, roles in (app_state.vrc_group_member_roles or {}).items():
-        normalized_roles = [str(r).strip().casefold() for r in (roles or [])]
+        normalized_roles = [str(r).strip().casefold() for r in (roles or []) if str(r).strip()]
         normalized_role_ids = [
             str(rid).strip()
             for rid in (app_state.vrc_group_member_role_ids.get(user_id, []) or [])
+            if str(rid).strip()
         ]
 
         has_staff_role = any(role in wanted_roles for role in normalized_roles)
