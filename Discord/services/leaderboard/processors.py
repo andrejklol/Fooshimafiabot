@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from core.cache import app_state
 from services.vrchat_client import (
     get_all_vrc_staff_members,
@@ -18,9 +20,17 @@ _MOD_ACTIONS = {"warn", "kick", "ban"}
 _SUPPORTED_ACTIONS = {"warn", "kick", "ban", "invite", "invite_accept"}
 
 
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 def _ensure_section(section: str) -> None:
     if section not in leaderboard_data or not isinstance(leaderboard_data[section], dict):
         leaderboard_data[section] = {}
+
+
+def _ensure_archive_section() -> None:
+    _ensure_section("archive")
 
 
 def _coerce_int(value, default: int = 0) -> int:
@@ -51,24 +61,24 @@ def _is_placeholder_name(name: str | None, staff_id: str | None = None) -> bool:
     return False
 
 
-def _pick_best_staff_name(staff_id: str, incoming_name: str | None, existing_name: str | None = None) -> str:
+def _pick_best_staff_name(
+    staff_id: str,
+    incoming_name: str | None,
+    existing_name: str | None = None,
+) -> str:
     incoming = str(incoming_name or "").strip()
     existing = str(existing_name or "").strip()
     fallback = _fallback_name_for_staff(staff_id)
 
-    # best case: real incoming name
     if incoming and not _is_placeholder_name(incoming, staff_id):
         return incoming
 
-    # otherwise preserve an existing real name
     if existing and not _is_placeholder_name(existing, staff_id):
         return existing
 
-    # otherwise keep existing placeholder if one exists
     if existing:
         return existing
 
-    # brand new entry fallback
     return fallback
 
 
@@ -86,17 +96,9 @@ def _build_default_staff_entry(staff_id: str, staff_name: str) -> dict:
     }
 
 
-def _ensure_staff(section: str, staff_id: str, staff_name: str) -> bool:
-    _ensure_section(section)
-
-    default_entry = _build_default_staff_entry(staff_id, staff_name)
-    existing = leaderboard_data[section].get(staff_id)
-
-    if not isinstance(existing, dict):
-        leaderboard_data[section][staff_id] = default_entry
-        return True
-
+def _normalize_staff_entry(existing: dict, staff_id: str, staff_name: str) -> bool:
     changed = False
+    default_entry = _build_default_staff_entry(staff_id, staff_name)
 
     for key, value in default_entry.items():
         if key not in existing:
@@ -126,17 +128,74 @@ def _ensure_staff(section: str, staff_id: str, staff_name: str) -> bool:
     return changed
 
 
+def _ensure_staff(section: str, staff_id: str, staff_name: str) -> bool:
+    _ensure_section(section)
+
+    default_entry = _build_default_staff_entry(staff_id, staff_name)
+    existing = leaderboard_data[section].get(staff_id)
+
+    if not isinstance(existing, dict):
+        leaderboard_data[section][staff_id] = default_entry
+        return True
+
+    return _normalize_staff_entry(existing, staff_id, staff_name)
+
+
+def _restore_archived_staff_if_present(staff_id: str, staff_name: str) -> bool:
+    _ensure_section("staff")
+    _ensure_archive_section()
+
+    archived_entry = leaderboard_data["archive"].get(staff_id)
+    if not isinstance(archived_entry, dict):
+        return False
+
+    restored_entry = dict(archived_entry)
+    restored_entry.pop("archived_at", None)
+    restored_entry["restored_at"] = _utc_now_iso()
+
+    _normalize_staff_entry(restored_entry, staff_id, staff_name)
+    leaderboard_data["staff"][staff_id] = restored_entry
+    del leaderboard_data["archive"][staff_id]
+    return True
+
+
+def _archive_removed_staff(current_staff_ids: set[str]) -> bool:
+    _ensure_section("staff")
+    _ensure_archive_section()
+
+    changed = False
+    to_archive = []
+
+    for staff_id in leaderboard_data["staff"].keys():
+        if staff_id not in current_staff_ids:
+            to_archive.append(staff_id)
+
+    for staff_id in to_archive:
+        entry = leaderboard_data["staff"].pop(staff_id, None)
+        if not isinstance(entry, dict):
+            continue
+
+        archived_entry = dict(entry)
+        archived_entry["archived_at"] = _utc_now_iso()
+        leaderboard_data["archive"][staff_id] = archived_entry
+        changed = True
+
+    return changed
+
+
 def _ensure_staff_in_needed_sections(
     staff_id: str,
     staff_name: str,
     monthly_only: bool = False,
 ) -> bool:
-
     changed = False
 
     if monthly_only:
         changed = _ensure_staff("monthly", staff_id, staff_name) or changed
     else:
+        restored = _restore_archived_staff_if_present(staff_id, staff_name)
+        changed = restored or changed
+
         changed = _ensure_staff("staff", staff_id, staff_name) or changed
         changed = _ensure_staff("monthly", staff_id, staff_name) or changed
 
@@ -149,7 +208,6 @@ def _apply_action_to_section(
     staff_name: str,
     action: str,
 ) -> None:
-
     _ensure_staff(section, staff_id, staff_name)
 
     if action not in _SUPPORTED_ACTIONS:
@@ -183,7 +241,6 @@ def _apply_action(
     action: str,
     monthly_only: bool = False,
 ) -> None:
-
     if monthly_only:
         _apply_action_to_section("monthly", staff_id, staff_name, action)
     else:
@@ -330,6 +387,7 @@ async def process_audit_log_entry(
 async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> int:
     added = 0
     any_changed = False
+    current_staff_ids: set[str] = set()
 
     vrc_members = await get_all_vrc_staff_members(force_refresh=force_refresh)
 
@@ -346,12 +404,16 @@ async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> in
         if not staff_id:
             continue
 
+        current_staff_ids.add(staff_id)
+
         staff_name = str(
             member.get("display_name")
             or member.get("displayName")
             or member.get("name")
             or "Unknown"
         ).strip()
+
+        was_missing_before = staff_id not in leaderboard_data.get("staff", {})
 
         changed = _ensure_staff_in_needed_sections(
             staff_id,
@@ -360,8 +422,13 @@ async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> in
         )
 
         if changed:
-            added += 1
             any_changed = True
+
+        if was_missing_before and staff_id in leaderboard_data.get("staff", {}):
+            added += 1
+
+    archived_changed = _archive_removed_staff(current_staff_ids)
+    any_changed = archived_changed or any_changed
 
     if any_changed:
         app_state.leaderboard_dirty = True
