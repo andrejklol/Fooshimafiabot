@@ -34,6 +34,8 @@ class TasksCog(commands.Cog):
         if not self.monthly_reset_loop.is_running():
             self.monthly_reset_loop.start()
 
+    # ---------------------------------------------------------
+
     def cog_unload(self):
         if self.check_logs_loop.is_running():
             self.check_logs_loop.cancel()
@@ -47,12 +49,15 @@ class TasksCog(commands.Cog):
         if self.monthly_reset_loop.is_running():
             self.monthly_reset_loop.cancel()
 
-    # --------------------------------
+    # ---------------------------------------------------------
+    # POLL VRC LOGS
+    # ---------------------------------------------------------
 
     @tasks.loop(minutes=LOG_POLL_MINUTES)
     async def check_logs_loop(self):
         try:
             await check_logs_once()
+
         except Exception as exc:
             await send_error_log(
                 "Task Loop Error",
@@ -60,12 +65,15 @@ class TasksCog(commands.Cog):
                 extra={"loop": "check_logs_loop"},
             )
 
-    # --------------------------------
+    # ---------------------------------------------------------
+    # AUTOSAVE
+    # ---------------------------------------------------------
 
     @tasks.loop(seconds=AUTOSAVE_SECONDS)
     async def autosave_loop(self):
         try:
             await autosave_if_dirty()
+
         except Exception as exc:
             await send_error_log(
                 "Task Loop Error",
@@ -73,13 +81,23 @@ class TasksCog(commands.Cog):
                 extra={"loop": "autosave_loop"},
             )
 
-    # --------------------------------
+    # ---------------------------------------------------------
+    # REFRESH GROUP CACHE + SYNC STAFF
+    # ---------------------------------------------------------
 
     @tasks.loop(minutes=GROUP_CACHE_REFRESH_MINUTES)
     async def refresh_group_cache_loop(self):
         try:
+            # refresh VRChat group cache
             await refresh_group_cache_once()
-            await sync_all_vrc_staff_into_leaderboard(force_refresh=False)
+
+            # sync staff into leaderboard
+            # now includes Discord role safety check
+            await sync_all_vrc_staff_into_leaderboard(
+                self.bot,
+                force_refresh=False
+            )
+
         except Exception as exc:
             await send_error_log(
                 "Task Loop Error",
@@ -87,12 +105,15 @@ class TasksCog(commands.Cog):
                 extra={"loop": "refresh_group_cache_loop"},
             )
 
-    # --------------------------------
+    # ---------------------------------------------------------
+    # MONTHLY RESET CHECK
+    # ---------------------------------------------------------
 
     @tasks.loop(minutes=1)
     async def monthly_reset_loop(self):
         try:
             await check_monthly_reset()
+
         except Exception as exc:
             await send_error_log(
                 "Task Loop Error",
@@ -100,7 +121,9 @@ class TasksCog(commands.Cog):
                 extra={"loop": "monthly_reset_loop"},
             )
 
-    # --------------------------------
+    # ---------------------------------------------------------
+    # WAIT FOR BOT READY
+    # ---------------------------------------------------------
 
     @check_logs_loop.before_loop
     @autosave_loop.before_loop
@@ -108,8 +131,14 @@ class TasksCog(commands.Cog):
     @monthly_reset_loop.before_loop
     async def before_loops(self):
         await self.bot.wait_until_ready()
+
+        # small delay so VRChat login + caches complete first
         await asyncio.sleep(10)
 
+
+# -------------------------------------------------------------
+# COG SETUP
+# -------------------------------------------------------------
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(TasksCog(bot))
