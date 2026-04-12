@@ -107,6 +107,38 @@ def _member_role_names_from_obj(member_obj) -> list[str]:
     return list(set(role_names))
 
 
+def _member_role_ids_from_obj(member_obj) -> list[str]:
+    role_ids: list[str] = []
+
+    for field in ("role_ids", "roleIds"):
+        for value in getattr(member_obj, field, None) or []:
+            if cleaned := str(value or "").strip():
+                role_ids.append(cleaned)
+
+    for field in ("roles", "role_names"):
+        for value in getattr(member_obj, field, None) or []:
+            if hasattr(value, "__dict__"):
+                if role_id := _extract_role_id(value):
+                    role_ids.append(role_id)
+
+    return list(set(role_ids))
+
+
+def _extract_member_display_name(member_obj) -> str | None:
+    for field in (
+        "display_name",
+        "displayName",
+        "user_display_name",
+        "userDisplayName",
+        "username",
+        "user_name",
+        "name",
+    ):
+        if value := str(getattr(member_obj, field, None) or "").strip():
+            return value
+    return None
+
+
 def _extract_group_name(group_obj) -> str | None:
     for field in ("name", "display_name", "displayName", "group_name"):
         if (value := str(getattr(group_obj, field, None) or "").strip()):
@@ -119,6 +151,10 @@ def _extract_group_id(group_obj) -> str | None:
         if (value := str(getattr(group_obj, field, None) or "").strip()):
             return value
     return None
+
+
+def _fallback_user_name(user_id: str) -> str:
+    return f"User {str(user_id).replace('usr_', '')[:8]}"
 
 
 # ============================================================
@@ -180,6 +216,7 @@ def _ensure_vrc_sync_state() -> None:
     _ensure_attr_default("vrc_group_info_refresh_lock", asyncio.Lock)
     _ensure_attr_default("group_cache", dict)
     _ensure_attr_default("vrc_group_info_last_refresh", 0.0)
+    _ensure_attr_default("vrc_group_member_role_ids", dict)
 
 
 # ============================================================
@@ -791,9 +828,26 @@ def get_cached_vrc_user_roles(user_id: str) -> list[str]:
     return app_state.vrc_group_member_roles.get(user_id, []) if user_id else []
 
 
+def get_cached_vrc_user_role_ids(user_id: str) -> list[str]:
+    user_id = str(user_id or "").strip()
+    return app_state.vrc_group_member_role_ids.get(user_id, []) if user_id else []
+
+
 def is_cached_vrc_user_staff(user_id: str) -> bool:
     wanted = {str(x).strip().casefold() for x in VRC_STAFF_ROLE_NAMES}
-    return any(str(r).strip().casefold() in wanted for r in get_cached_vrc_user_roles(user_id))
+    staff_role_ids = {str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())}
+
+    role_name_match = any(
+        str(r).strip().casefold() in wanted
+        for r in get_cached_vrc_user_roles(user_id)
+    )
+
+    role_id_match = any(
+        str(rid).strip() in staff_role_ids
+        for rid in get_cached_vrc_user_role_ids(user_id)
+    )
+
+    return role_name_match or role_id_match
 
 
 async def vrc_user_is_staff(user_id: str) -> bool:
@@ -919,6 +973,17 @@ async def refresh_vrc_group_roles(force: bool = False) -> None:
             app_state.vrc_group_roles_last_refresh = _now_ts()
             app_state.vrchat_group_roles = new_map
 
+            try:
+                role_names_lower = {str(x).strip().casefold() for x in VRC_STAFF_ROLE_NAMES}
+                staff_role_ids = {
+                    role_id
+                    for role_id, role_name in new_map.items()
+                    if str(role_name).strip().casefold() in role_names_lower
+                }
+                app_state.vrchat_staff_role_ids = staff_role_ids
+            except Exception:
+                pass
+
             if hasattr(app_state, "sync_cache_aliases"):
                 app_state.sync_cache_aliases()
 
@@ -952,7 +1017,12 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
             offset = 0
             batch_size = 100
 
-            new_cache: dict[str, list[str]] = {}
+            old_role_cache = dict(getattr(app_state, "vrc_group_member_roles", {}) or {})
+            old_role_id_cache = dict(getattr(app_state, "vrc_group_member_role_ids", {}) or {})
+
+            new_role_cache: dict[str, list[str]] = {}
+            new_role_id_cache: dict[str, list[str]] = {}
+
             total_rows = 0
             missing_user_id = 0
             duplicate_user_ids = 0
@@ -975,7 +1045,7 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                     break
 
                 page_count += 1
-                before_count = len(new_cache)
+                before_count = len(new_role_cache)
 
                 for member in members:
                     total_rows += 1
@@ -990,24 +1060,17 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                         missing_user_id += 1
                         continue
 
-                    if user_id in new_cache:
+                    if user_id in new_role_cache:
                         duplicate_user_ids += 1
 
-                    new_cache[user_id] = _member_role_names_from_obj(member)
+                    new_role_cache[user_id] = _member_role_names_from_obj(member)
+                    new_role_id_cache[user_id] = _member_role_ids_from_obj(member)
 
-                    for field in (
-                        "display_name",
-                        "user_display_name",
-                        "username",
-                        "user_name",
-                        "name",
-                    ):
-                        if value := str(getattr(member, field, None) or "").strip():
-                            app_state.target_name_cache[user_id] = value
-                            break
+                    if display_name := _extract_member_display_name(member):
+                        app_state.target_name_cache[user_id] = display_name
 
                 loaded_now = len(members)
-                growth = len(new_cache) - before_count
+                growth = len(new_role_cache) - before_count
 
                 log.debug(
                     "group_members page=%s loaded=%s growth=%s offset_before=%s cache_size=%s",
@@ -1015,7 +1078,7 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                     loaded_now,
                     growth,
                     offset,
-                    len(new_cache),
+                    len(new_role_cache),
                 )
 
                 consecutive_no_growth_pages = consecutive_no_growth_pages + 1 if growth <= 0 else 0
@@ -1028,23 +1091,23 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                     log.warning(
                         "group_members stopping early due to repeated no-growth pages (pages=%s cache_size=%s duplicates=%s)",
                         page_count,
-                        len(new_cache),
+                        len(new_role_cache),
                         duplicate_user_ids,
                     )
                     break
 
                 await asyncio.sleep(GROUP_MEMBERS_PAGE_DELAY_SECONDS)
 
-            if not new_cache:
+            if not new_role_cache:
                 log.warning("group_members refresh produced empty cache; keeping old cache")
                 return
 
-            old_count = len(getattr(app_state, "vrc_group_member_roles", {}))
+            old_count = len(old_role_cache)
 
-            if old_count > 0 and len(new_cache) < max(50, int(old_count * 0.60)):
+            if old_count > 0 and len(new_role_cache) < max(50, int(old_count * 0.60)):
                 log.warning(
                     "group_members refresh looked partial; keeping old cache (new=%s old=%s api_rows=%s duplicates=%s pages=%s)",
-                    len(new_cache),
+                    len(new_role_cache),
                     old_count,
                     total_rows,
                     duplicate_user_ids,
@@ -1052,34 +1115,40 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                 )
                 return
 
-            app_state.vrc_group_member_roles = new_cache
+            # preserve old known staff if VRChat returned a partial membership set
+            preserved_staff = 0
+            for user_id, old_roles in old_role_cache.items():
+                if user_id in new_role_cache:
+                    continue
+
+                old_role_ids = old_role_id_cache.get(user_id, [])
+                old_is_staff = is_cached_vrc_user_staff(user_id) or any(
+                    rid in {str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())}
+                    for rid in old_role_ids
+                )
+
+                if old_is_staff:
+                    new_role_cache[user_id] = list(old_roles or [])
+                    new_role_id_cache[user_id] = list(old_role_ids or [])
+                    preserved_staff += 1
+
+            app_state.vrc_group_member_roles = new_role_cache
+            app_state.vrc_group_member_role_ids = new_role_id_cache
             app_state.vrc_group_members_last_refresh = _now_ts()
-            app_state.vrchat_group_members = new_cache
+            app_state.vrchat_group_members = new_role_cache
 
             if hasattr(app_state, "sync_cache_aliases"):
                 app_state.sync_cache_aliases()
 
-            try:
-                role_names_lower = {str(x).strip().casefold() for x in VRC_STAFF_ROLE_NAMES}
-                staff_role_ids = {
-                    role_id
-                    for role_id, role_name in getattr(app_state, "vrc_group_role_map", {}).items()
-                    if str(role_name).strip().casefold() in role_names_lower
-                }
-                app_state.vrchat_staff_role_ids = staff_role_ids
-                if hasattr(app_state, "sync_cache_aliases"):
-                    app_state.sync_cache_aliases()
-            except Exception:
-                pass
-
             log.info(
-                "cached %s VRC group members (api_rows=%s missing_user_id=%s duplicates=%s pages=%s old_cache=%s)",
-                len(new_cache),
+                "cached %s VRC group members (api_rows=%s missing_user_id=%s duplicates=%s pages=%s old_cache=%s preserved_staff=%s)",
+                len(new_role_cache),
                 total_rows,
                 missing_user_id,
                 duplicate_user_ids,
                 page_count,
                 old_count,
+                preserved_staff,
             )
 
         except Exception as exc:
@@ -1459,17 +1528,7 @@ async def login_vrchat() -> bool:
 async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
     """
     Returns all VRChat group members who currently have a staff role.
-
-    Uses cached group role/member data when possible.
-
-    Output:
-    [
-        {
-            "user_id": "usr_xxx",
-            "display_name": "ExampleUser",
-            "roles": ["fooshi capo"]
-        }
-    ]
+    Preserves staff detection via role names OR staff role ids.
     """
 
     if force_refresh:
@@ -1484,27 +1543,36 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
         str(role).strip().casefold()
         for role in VRC_STAFF_ROLE_NAMES
     }
+    staff_role_ids = {
+        str(role_id).strip()
+        for role_id in getattr(app_state, "vrchat_staff_role_ids", set())
+    }
 
     results: list[dict] = []
 
     for user_id, roles in (app_state.vrc_group_member_roles or {}).items():
-        normalized_roles = [
-            str(r).strip().casefold()
-            for r in (roles or [])
+        normalized_roles = [str(r).strip().casefold() for r in (roles or [])]
+        normalized_role_ids = [
+            str(rid).strip()
+            for rid in (app_state.vrc_group_member_role_ids.get(user_id, []) or [])
         ]
 
-        if not any(role in wanted_roles for role in normalized_roles):
+        has_staff_role = any(role in wanted_roles for role in normalized_roles)
+        has_staff_role_id = any(role_id in staff_role_ids for role_id in normalized_role_ids)
+
+        if not (has_staff_role or has_staff_role_id):
             continue
 
-        display_name = (
+        display_name = str(
             app_state.target_name_cache.get(user_id)
-            or f"User {str(user_id).replace('usr_', '')[:8]}"
-        )
+            or _fallback_user_name(user_id)
+        ).strip()
 
         results.append({
             "user_id": str(user_id),
-            "display_name": str(display_name),
+            "display_name": display_name,
             "roles": normalized_roles,
+            "role_ids": normalized_role_ids,
         })
 
     results.sort(key=lambda x: x["display_name"].casefold())
