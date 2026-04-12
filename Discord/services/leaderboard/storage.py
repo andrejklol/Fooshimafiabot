@@ -25,6 +25,7 @@ def _ensure_data_file_exists():
 leaderboard_data = {
     "staff": {},
     "monthly": {},
+    "archive": {},
 
     # preserved extras
     "monthly_reset_key": None,
@@ -44,48 +45,75 @@ def _blank_staff_entry(name: str) -> dict:
     }
 
 
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _recalculate_points(entry: dict) -> int:
     return (
-        int(entry.get("warn", 0)) * WARN_SCORE
-        + int(entry.get("kick", 0)) * KICK_SCORE
-        + int(entry.get("ban", 0)) * BAN_SCORE
-        + int(entry.get("invite", 0)) * INVITE_SCORE
-        + int(entry.get("invite_accept", 0)) * INVITE_ACCEPT_BONUS
+        _safe_int(entry.get("warn", 0)) * WARN_SCORE
+        + _safe_int(entry.get("kick", 0)) * KICK_SCORE
+        + _safe_int(entry.get("ban", 0)) * BAN_SCORE
+        + _safe_int(entry.get("invite", 0)) * INVITE_SCORE
+        + _safe_int(entry.get("invite_accept", 0)) * INVITE_ACCEPT_BONUS
     )
 
 
+def _normalize_staff_section(section_data: dict) -> dict:
+    if not isinstance(section_data, dict):
+        section_data = {}
+
+    normalized = {}
+
+    for staff_id, entry in section_data.items():
+        if not isinstance(entry, dict):
+            normalized[str(staff_id)] = _blank_staff_entry(str(staff_id))
+            continue
+
+        fixed = dict(entry)
+        fixed.setdefault("id", str(staff_id))
+        fixed.setdefault("name", str(staff_id))
+        fixed.setdefault("warn", 0)
+        fixed.setdefault("kick", 0)
+        fixed.setdefault("ban", 0)
+        fixed.setdefault("invite", 0)
+        fixed.setdefault("invite_accept", 0)
+
+        fixed["warn"] = _safe_int(fixed.get("warn", 0))
+        fixed["kick"] = _safe_int(fixed.get("kick", 0))
+        fixed["ban"] = _safe_int(fixed.get("ban", 0))
+        fixed["invite"] = _safe_int(fixed.get("invite", 0))
+        fixed["invite_accept"] = _safe_int(fixed.get("invite_accept", 0))
+        fixed["points"] = _recalculate_points(fixed)
+
+        normalized[str(staff_id)] = fixed
+
+    return normalized
+
+
 def _normalize_new_format(data: dict) -> dict:
-    staff = data.get("staff", {})
-    monthly = data.get("monthly", {})
+    staff = _normalize_staff_section(data.get("staff", {}))
+    monthly = _normalize_staff_section(data.get("monthly", {}))
+    archive = _normalize_staff_section(data.get("archive", {}))
 
-    if not isinstance(staff, dict):
-        staff = {}
-
-    if not isinstance(monthly, dict):
-        monthly = {}
-
-    for section in (staff, monthly):
-        for staff_id, entry in list(section.items()):
-            if not isinstance(entry, dict):
-                section[staff_id] = _blank_staff_entry(str(staff_id))
-                continue
-
-            entry.setdefault("name", str(staff_id))
-            entry.setdefault("warn", 0)
-            entry.setdefault("kick", 0)
-            entry.setdefault("ban", 0)
-            entry.setdefault("invite", 0)
-            entry.setdefault("invite_accept", 0)
-
-            entry["points"] = _recalculate_points(entry)
+    for entry in archive.values():
+        entry.setdefault("archived_at", None)
 
     return {
         "staff": staff,
         "monthly": monthly,
+        "archive": archive,
 
         # preserve other data
         "monthly_reset_key": data.get("monthly_reset_key"),
-        "pending_invites_by_target": data.get("pending_invites_by_target", {}),
+        "pending_invites_by_target": (
+            data.get("pending_invites_by_target", {})
+            if isinstance(data.get("pending_invites_by_target", {}), dict)
+            else {}
+        ),
     }
 
 
@@ -99,28 +127,28 @@ def _migrate_legacy_format(data: dict) -> dict:
         return section[name]
 
     for name, count in data.get("warnings", {}).items():
-        ensure(staff, name)["warn"] = int(count)
+        ensure(staff, name)["warn"] = _safe_int(count)
 
     for name, count in data.get("kicks", {}).items():
-        ensure(staff, name)["kick"] = int(count)
+        ensure(staff, name)["kick"] = _safe_int(count)
 
     for name, count in data.get("bans", {}).items():
-        ensure(staff, name)["ban"] = int(count)
+        ensure(staff, name)["ban"] = _safe_int(count)
 
     for name, count in data.get("invites", {}).items():
-        ensure(staff, name)["invite"] = int(count)
+        ensure(staff, name)["invite"] = _safe_int(count)
 
     for name, count in data.get("monthly_warnings", {}).items():
-        ensure(monthly, name)["warn"] = int(count)
+        ensure(monthly, name)["warn"] = _safe_int(count)
 
     for name, count in data.get("monthly_kicks", {}).items():
-        ensure(monthly, name)["kick"] = int(count)
+        ensure(monthly, name)["kick"] = _safe_int(count)
 
     for name, count in data.get("monthly_bans", {}).items():
-        ensure(monthly, name)["ban"] = int(count)
+        ensure(monthly, name)["ban"] = _safe_int(count)
 
     for name, count in data.get("monthly_invites", {}).items():
-        ensure(monthly, name)["invite"] = int(count)
+        ensure(monthly, name)["invite"] = _safe_int(count)
 
     for entry in staff.values():
         entry["points"] = _recalculate_points(entry)
@@ -131,6 +159,7 @@ def _migrate_legacy_format(data: dict) -> dict:
     return {
         "staff": staff,
         "monthly": monthly,
+        "archive": {},
         "monthly_reset_key": None,
         "pending_invites_by_target": {},
     }
@@ -141,11 +170,12 @@ def _normalize_leaderboard_data(data):
         return {
             "staff": {},
             "monthly": {},
+            "archive": {},
             "monthly_reset_key": None,
             "pending_invites_by_target": {},
         }
 
-    if "staff" in data or "monthly" in data:
+    if "staff" in data or "monthly" in data or "archive" in data:
         return _normalize_new_format(data)
 
     return _migrate_legacy_format(data)
@@ -157,6 +187,7 @@ def _replace_in_place(new_data):
     leaderboard_data.update({
         "staff": dict(new_data.get("staff", {})),
         "monthly": dict(new_data.get("monthly", {})),
+        "archive": dict(new_data.get("archive", {})),
         "monthly_reset_key": new_data.get("monthly_reset_key"),
         "pending_invites_by_target": dict(
             new_data.get("pending_invites_by_target", {})
@@ -189,6 +220,7 @@ def reset_leaderboard_data():
     _replace_in_place({
         "staff": {},
         "monthly": {},
+        "archive": {},
         "monthly_reset_key": None,
         "pending_invites_by_target": {},
     })
