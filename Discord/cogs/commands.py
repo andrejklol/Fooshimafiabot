@@ -1066,53 +1066,148 @@ class Commands(commands.Cog):
 
     @commands.hybrid_command(
         name="staffrecord",
-        description="Look up an individual staff member's moderation record",
+        description="Look up staff moderation record (overall, monthly, archived)",
     )
     @app_commands.describe(
         member="Mention the Discord staff member",
-        staff="Or type the leaderboard name / VRChat ID",
+        staff="Or type VRChat name / ID",
+        scope="overall, monthly, archived",
     )
     async def staffrecord(
         self,
         ctx: commands.Context,
         member: Optional[discord.Member] = None,
+        scope: str = "overall",
         *,
         staff: Optional[str] = None,
     ) -> None:
-        if not await self._require_level(ctx, LEVEL_SOLDIER):
+
+        scope = str(scope or "overall").lower().strip()
+
+        VALID_SCOPES = {"overall", "monthly", "archived"}
+
+        if scope not in VALID_SCOPES:
+
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Invalid Scope",
+                    "Use overall, monthly, or archived",
+                ),
+                ephemeral=True,
+            )
             return
 
+
+        # permission logic
+        required_level = LEVEL_CONSIGLIERE if scope == "archived" else LEVEL_CAPO
+
+        if not await self._require_level(ctx, required_level):
+            return
+
+
         try:
+
             staff_id = None
             record = None
-            resolved_member: Optional[discord.Member] = member
+            resolved_member = member
 
-            if member is not None:
+
+            data_scope = "staff"
+
+            if scope == "monthly":
+                data_scope = "monthly"
+
+            elif scope == "archived":
+                data_scope = "archive"
+
+
+            # search by discord member
+            if member and data_scope == "staff":
+
                 staff_id, record = self._find_staff_record_by_member(member)
 
-            if (not staff_id or not record) and staff:
-                staff_id, record = self._find_staff_record(staff)
 
-                if record and resolved_member is None and ctx.guild is not None:
-                    record_discord_id = record.get("discord_id")
-                    if record_discord_id:
-                        resolved_member = ctx.guild.get_member(int(record_discord_id))
+            # search by name/id
+            if (not record) and staff:
 
-            if not staff_id or not record:
+                scope_data = self._get_scope_data(data_scope)
+
+                q = staff.strip().lower()
+
+                for sid, rec in scope_data.items():
+
+                    name = str(rec.get("name", "")).lower()
+
+                    if q == sid.lower() or q == name:
+
+                        staff_id = sid
+                        record = rec
+                        break
+
+
+                # fuzzy match fallback
+                if not record:
+
+                    best = (None, None, 0)
+
+                    for sid, rec in scope_data.items():
+
+                        name = str(rec.get("name", "")).lower()
+
+                        score = self._name_similarity(q, name)
+
+                        if score > best[2]:
+
+                            best = (sid, rec, score)
+
+
+                    if best[2] >= 0.85:
+
+                        staff_id, record = best[0], best[1]
+
+
+            if not record:
+
                 await respond(
                     ctx,
                     embed=warning_embed(
                         "Staff Record Not Found",
-                        "No staff record matched that Discord user, name, or ID.",
+                        f"No {scope} record found.",
                     ),
                     ephemeral=True,
                 )
                 return
 
-            embed = self._build_staff_record_embed(staff_id, record, resolved_member)
-            await respond(ctx, embed=embed, ephemeral=True)
+
+            embed = self._build_staff_record_embed(
+                staff_id,
+                record,
+                resolved_member,
+            )
+
+
+            # archived indicator
+            if data_scope == "archive":
+
+                embed.title = f"Archived Staff Record — {record.get('name')}"
+
+                embed.add_field(
+                    name="Archived At",
+                    value=str(record.get("archived_at", "Unknown")),
+                    inline=False,
+                )
+
+
+            await respond(
+                ctx,
+                embed=embed,
+                ephemeral=True,
+            )
+
 
         except Exception as exc:
+
             await self._handle_mod_error(
                 ctx,
                 "Staff Record Failed",
