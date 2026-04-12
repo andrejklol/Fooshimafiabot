@@ -1064,140 +1064,81 @@ class Commands(commands.Cog):
                 exc,
             )
 
+
     @commands.hybrid_command(
         name="staffrecord",
-        description="Look up staff moderation record (overall, monthly, archived)",
+        description="Look up a staff moderation record",
     )
     @app_commands.describe(
-        member="Mention the Discord staff member",
-        staff="Or type VRChat name / ID",
-        scope="overall, monthly, archived",
+        staff="Type the leaderboard name or VRChat ID",
+        archived="Search archived staff instead",
     )
     async def staffrecord(
         self,
         ctx: commands.Context,
-        member: Optional[discord.Member] = None,
-        scope: str = "overall",
-        *,
-        staff: Optional[str] = None,
+        staff: str,
+        archived: bool = False,
     ) -> None:
 
-        scope = str(scope or "overall").lower().strip()
-
-        VALID_SCOPES = {"overall", "monthly", "archived"}
-
-        if scope not in VALID_SCOPES:
-
-            await respond(
-                ctx,
-                embed=warning_embed(
-                    "Invalid Scope",
-                    "Use overall, monthly, or archived",
-                ),
-                ephemeral=True,
-            )
-            return
-
-
-        # permission logic
-        required_level = LEVEL_CONSIGLIERE if scope == "archived" else LEVEL_CAPO
+        required_level = LEVEL_CONSIGLIERE if archived else LEVEL_CAPO
 
         if not await self._require_level(ctx, required_level):
             return
 
-
         try:
+            data_scope = "archive" if archived else "staff"
+
+            scope_data = self._get_scope_data(data_scope)
+            q = staff.strip().lower()
 
             staff_id = None
             record = None
-            resolved_member = member
 
+            for sid, rec in scope_data.items():
+                name = str(rec.get("name", "")).lower()
 
-            data_scope = "staff"
-
-            if scope == "monthly":
-                data_scope = "monthly"
-
-            elif scope == "archived":
-                data_scope = "archive"
-
-
-            # search by discord member
-            if member and data_scope == "staff":
-
-                staff_id, record = self._find_staff_record_by_member(member)
-
-
-            # search by name/id
-            if (not record) and staff:
-
-                scope_data = self._get_scope_data(data_scope)
-
-                q = staff.strip().lower()
-
-                for sid, rec in scope_data.items():
-
-                    name = str(rec.get("name", "")).lower()
-
-                    if q == sid.lower() or q == name:
-
-                        staff_id = sid
-                        record = rec
-                        break
-
-
-                # fuzzy match fallback
-                if not record:
-
-                    best = (None, None, 0)
-
-                    for sid, rec in scope_data.items():
-
-                        name = str(rec.get("name", "")).lower()
-
-                        score = self._name_similarity(q, name)
-
-                        if score > best[2]:
-
-                            best = (sid, rec, score)
-
-
-                    if best[2] >= 0.85:
-
-                        staff_id, record = best[0], best[1]
-
+                if q == sid.lower() or q == name:
+                    staff_id = sid
+                    record = rec
+                    break
 
             if not record:
+                best = (None, None, 0.0)
 
+                for sid, rec in scope_data.items():
+                    name = str(rec.get("name", "")).lower()
+                    score = self._name_similarity(q, name)
+
+                    if score > best[2]:
+                        best = (sid, rec, score)
+
+                if best[2] >= 0.85:
+                    staff_id, record = best[0], best[1]
+
+            if not record:
                 await respond(
                     ctx,
                     embed=warning_embed(
                         "Staff Record Not Found",
-                        f"No {scope} record found.",
+                        "No matching record found.",
                     ),
                     ephemeral=True,
                 )
                 return
 
-
             embed = self._build_staff_record_embed(
                 staff_id,
                 record,
-                resolved_member,
+                None,
             )
 
-
-            # archived indicator
-            if data_scope == "archive":
-
+            if archived:
                 embed.title = f"Archived Staff Record — {record.get('name')}"
-
                 embed.add_field(
                     name="Archived At",
                     value=str(record.get("archived_at", "Unknown")),
                     inline=False,
                 )
-
 
             await respond(
                 ctx,
@@ -1205,9 +1146,7 @@ class Commands(commands.Cog):
                 ephemeral=True,
             )
 
-
         except Exception as exc:
-
             await self._handle_mod_error(
                 ctx,
                 "Staff Record Failed",
@@ -1223,30 +1162,34 @@ class Commands(commands.Cog):
     ) -> list[app_commands.Choice[str]]:
         try:
             current = (current or "").lower().strip()
-            scope_data = self._get_scope_data("staff")
 
             choices: list[app_commands.Choice[str]] = []
 
-            for staff_id, record in scope_data.items():
-                name = str(record.get("name", staff_id))
-                haystack = f"{name} {staff_id}".lower()
+            for scope_name in ["staff", "archive"]:
+                scope_data = self._get_scope_data(scope_name)
 
-                if current in haystack:
-                    choices.append(
-                        app_commands.Choice(
-                            name=f"{name} ({staff_id[:12]})",
-                            value=staff_id,
+                for staff_id, record in scope_data.items():
+                    name = str(record.get("name", staff_id))
+                    haystack = f"{name} {staff_id}".lower()
+
+                    if current in haystack:
+                        label = f"{name} ({'archived' if scope_name == 'archive' else 'active'})"
+                        choices.append(
+                            app_commands.Choice(
+                                name=label[:100],
+                                value=staff_id,
+                            )
                         )
-                    )
 
-                if len(choices) >= 25:
-                    break
+                    if len(choices) >= 25:
+                        return choices[:25]
 
-            return choices
+            return choices[:25]
 
         except Exception as exc:
             await send_error_log("Staff Record Autocomplete Error", exc)
             return []
+
 
     @leaderboard.autocomplete("scope")
     async def leaderboard_scope_autocomplete(
