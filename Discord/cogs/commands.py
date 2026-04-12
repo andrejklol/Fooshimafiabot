@@ -176,11 +176,11 @@ class Commands(commands.Cog):
                 await ctx.interaction.response.defer(ephemeral=ephemeral)
 
     async def _send_ctx_reply(
-            self,
-            ctx,
-            content: str | None = None,
-            embed: discord.Embed | None = None,
-            ephemeral: bool = True,
+        self,
+        ctx,
+        content: str | None = None,
+        embed: discord.Embed | None = None,
+        ephemeral: bool = True,
     ) -> None:
         if getattr(ctx, "interaction", None):
             print("[commands] sending interaction followup")
@@ -194,11 +194,11 @@ class Commands(commands.Cog):
             await ctx.send(content=content, embed=embed)
 
     async def _handle_admin_error(
-            self,
-            ctx,
-            user_title: str,
-            log_title: str,
-            exc: Exception,
+        self,
+        ctx,
+        user_title: str,
+        log_title: str,
+        exc: Exception,
     ) -> None:
         print(f"[commands] error in {log_title}: {exc!r}")
 
@@ -221,11 +221,11 @@ class Commands(commands.Cog):
         )
 
     async def _handle_mod_error(
-            self,
-            ctx,
-            user_title: str,
-            log_title: str,
-            exc: Exception,
+        self,
+        ctx,
+        user_title: str,
+        log_title: str,
+        exc: Exception,
     ) -> None:
         await respond(
             ctx,
@@ -259,14 +259,14 @@ class Commands(commands.Cog):
         return chunks
 
     def _format_staff_debug_block(
-            self,
-            discord_id: int,
-            display_name: str,
-            discord_status: str,
-            vrc_input: str,
-            resolved_user_id: str | None,
-            raw_status: str | None,
-            is_online: bool,
+        self,
+        discord_id: int,
+        display_name: str,
+        discord_status: str,
+        vrc_input: str,
+        resolved_user_id: str | None,
+        raw_status: str | None,
+        is_online: bool,
     ) -> str:
         return "\n".join(
             [
@@ -281,12 +281,12 @@ class Commands(commands.Cog):
         )
 
     def _normalize_history_summary(
-            self,
-            result,
-            *,
-            requested: int,
-            rebuild: bool,
-            monthly_only: bool,
+        self,
+        result,
+        *,
+        requested: int,
+        rebuild: bool,
+        monthly_only: bool,
     ) -> dict[str, int | float | bool]:
         if isinstance(result, dict):
             invites_value = int(
@@ -355,9 +355,9 @@ class Commands(commands.Cog):
         return SequenceMatcher(None, a, b).ratio()
 
     def _match_record_against_names(
-            self,
-            record: dict,
-            candidates: list[str],
+        self,
+        record: dict,
+        candidates: list[str],
     ) -> bool:
         record_name = str(record.get("name", "")).strip().lower()
 
@@ -390,8 +390,8 @@ class Commands(commands.Cog):
         return False
 
     def _find_staff_record_by_member(
-            self,
-            member: discord.Member | discord.User,
+        self,
+        member: discord.Member | discord.User,
     ) -> tuple[str | None, dict | None]:
         scope_data = self._get_scope_data("staff")
         if not scope_data:
@@ -416,8 +416,8 @@ class Commands(commands.Cog):
         return None, None
 
     def _find_staff_record(
-            self,
-            query: str,
+        self,
+        query: str,
     ) -> tuple[str | None, dict | None]:
         scope_data = self._get_scope_data("staff")
         if not scope_data:
@@ -492,10 +492,10 @@ class Commands(commands.Cog):
         return None
 
     def _get_top_stat_lines(
-            self,
-            stat_key: str,
-            scope: str,
-            limit: int = 3,
+        self,
+        stat_key: str,
+        scope: str,
+        limit: int = 3,
     ) -> list[str]:
         scope_data = self._get_scope_data(scope)
 
@@ -528,10 +528,10 @@ class Commands(commands.Cog):
         return lines
 
     def _build_staffrecord_embed(
-            self,
-            staff_id: str,
-            record: dict,
-            member: Optional[discord.Member | discord.User] = None,
+        self,
+        staff_id: str,
+        record: dict,
+        member: Optional[discord.Member | discord.User] = None,
     ) -> discord.Embed:
         name = record.get("name") or staff_id
         warn_count = int(record.get("warn", 0) or 0)
@@ -589,7 +589,7 @@ class Commands(commands.Cog):
         try:
             await refresh_vrc_group_members(force=True)
             vrc_staff_members = await get_all_vrc_staff_members(force_refresh=False)
-            synced_count = await sync_all_vrc_staff_into_leaderboard(vrc_staff_members)
+            synced_count = await sync_all_vrc_staff_into_leaderboard(self.bot)
 
             await self._send_ctx_reply(
                 ctx,
@@ -597,6 +597,7 @@ class Commands(commands.Cog):
                     "VRChat Members Refreshed",
                     f"Members cached: `{len(app_state.vrc_group_member_roles)}`\n"
                     f"Roles cached: `{len(app_state.vrc_group_role_map)}`\n"
+                    f"Detected VRC staff members: `{len(vrc_staff_members)}`\n"
                     f"Staff synced to leaderboard: `{synced_count}`",
                 ),
                 ephemeral=True,
@@ -649,11 +650,11 @@ class Commands(commands.Cog):
         monthly_only="Rebuild only this month's leaderboard counters",
     )
     async def loadvrchistory(
-            self,
-            ctx: commands.Context,
-            amount: int = 5000,
-            rebuild: bool = True,
-            monthly_only: bool = False,
+        self,
+        ctx: commands.Context,
+        amount: int = 5000,
+        rebuild: bool = True,
+        monthly_only: bool = False,
     ) -> None:
         print(
             f"[loadvrchistory] called by user={ctx.author.id} "
@@ -875,9 +876,9 @@ class Commands(commands.Cog):
         ]
     )
     async def simulaterepeatalert(
-            self,
-            ctx: commands.Context,
-            action: app_commands.Choice[str],
+        self,
+        ctx: commands.Context,
+        action: app_commands.Choice[str],
     ) -> None:
         if not await self._require_level(ctx, LEVEL_OWNER):
             return
@@ -1014,9 +1015,9 @@ class Commands(commands.Cog):
         scope="Choose overall or monthly",
     )
     async def leaderboard(
-            self,
-            ctx,
-            scope: str = "overall",
+        self,
+        ctx,
+        scope: str = "overall",
     ) -> None:
         if not await self._require_level(ctx, LEVEL_SOLDIER):
             return
@@ -1085,11 +1086,11 @@ class Commands(commands.Cog):
         staff="Or type the leaderboard name / VRChat ID",
     )
     async def staffrecord(
-            self,
-            ctx: commands.Context,
-            member: Optional[discord.Member] = None,
-            *,
-            staff: Optional[str] = None,
+        self,
+        ctx: commands.Context,
+        member: Optional[discord.Member] = None,
+        *,
+        staff: Optional[str] = None,
     ) -> None:
         if not await self._require_level(ctx, LEVEL_SOLDIER):
             return
@@ -1134,9 +1135,9 @@ class Commands(commands.Cog):
 
     @staffrecord.autocomplete("staff")
     async def staffrecord_autocomplete(
-            self,
-            interaction: discord.Interaction,
-            current: str,
+        self,
+        interaction: discord.Interaction,
+        current: str,
     ) -> list[app_commands.Choice[str]]:
         try:
             current = str(current or "").lower().strip()
@@ -1167,9 +1168,9 @@ class Commands(commands.Cog):
 
     @leaderboard.autocomplete("scope")
     async def leaderboard_scope_autocomplete(
-            self,
-            interaction: discord.Interaction,
-            current: str,
+        self,
+        interaction: discord.Interaction,
+        current: str,
     ) -> list[app_commands.Choice[str]]:
         try:
             current = str(current or "").lower()
