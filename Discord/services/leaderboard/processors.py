@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from core.cache import app_state
@@ -15,6 +16,8 @@ from services.offenders.tracking import (
 from .scoring import get_action_score
 from .storage import leaderboard_data, save_leaderboard_data
 
+
+log = logging.getLogger("leaderboard_processors")
 
 _MOD_ACTIONS = {"warn", "kick", "ban"}
 _SUPPORTED_ACTIONS = {"warn", "kick", "ban", "invite", "invite_accept"}
@@ -156,6 +159,8 @@ def _restore_archived_staff_if_present(staff_id: str, staff_name: str) -> bool:
     _normalize_staff_entry(restored_entry, staff_id, staff_name)
     leaderboard_data["staff"][staff_id] = restored_entry
     del leaderboard_data["archive"][staff_id]
+
+    log.info("Restored archived staff member: %s (%s)", staff_name, staff_id)
     return True
 
 
@@ -166,7 +171,7 @@ def _archive_removed_staff(current_staff_ids: set[str]) -> bool:
     changed = False
     to_archive = []
 
-    for staff_id in leaderboard_data["staff"].keys():
+    for staff_id in list(leaderboard_data["staff"].keys()):
         if staff_id not in current_staff_ids:
             to_archive.append(staff_id)
 
@@ -179,6 +184,12 @@ def _archive_removed_staff(current_staff_ids: set[str]) -> bool:
         archived_entry["archived_at"] = _utc_now_iso()
         leaderboard_data["archive"][staff_id] = archived_entry
         changed = True
+
+        log.warning(
+            "Archived staff member due to missing from VRC sync: %s (%s)",
+            archived_entry.get("name", "Unknown"),
+            staff_id,
+        )
 
     return changed
 
@@ -389,7 +400,12 @@ async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> in
     any_changed = False
     current_staff_ids: set[str] = set()
 
+    _ensure_section("staff")
+    _ensure_archive_section()
+
+    previous_staff_count = len(leaderboard_data.get("staff", {}))
     vrc_members = await get_all_vrc_staff_members(force_refresh=force_refresh)
+    fetched_staff_count = len(vrc_members or [])
 
     for member in vrc_members or []:
         if not isinstance(member, dict):
@@ -427,8 +443,24 @@ async def sync_all_vrc_staff_into_leaderboard(force_refresh: bool = False) -> in
         if was_missing_before and staff_id in leaderboard_data.get("staff", {}):
             added += 1
 
-    archived_changed = _archive_removed_staff(current_staff_ids)
-    any_changed = archived_changed or any_changed
+    should_archive = True
+
+    if previous_staff_count > 0:
+        if fetched_staff_count == 0:
+            should_archive = False
+        elif fetched_staff_count < max(3, int(previous_staff_count * 0.7)):
+            should_archive = False
+
+    if should_archive:
+        archived_changed = _archive_removed_staff(current_staff_ids)
+        any_changed = archived_changed or any_changed
+    else:
+        log.warning(
+            "Skipped archive pass because fetched staff count looked suspicious "
+            "(previous=%s, fetched=%s)",
+            previous_staff_count,
+            fetched_staff_count,
+        )
 
     if any_changed:
         app_state.leaderboard_dirty = True
