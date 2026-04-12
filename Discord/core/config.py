@@ -92,32 +92,24 @@ REPEAT_BAN_WINDOW_DAYS = int(os.getenv("REPEAT_BAN_WINDOW_DAYS", "30"))
 
 # ============================================================
 # VRCHAT STAFF ROLE NAMES
-# These are normalized internally (case insensitive)
-# Includes plural + alternate formatting safety
 # ============================================================
 
 VRC_STAFF_ROLE_NAMES = {
 
-    # God tier
     "godfooshi",
     "god fooshi",
 
-    # Underboss
     "fooshi underboss",
 
-    # Consigliere variations
     "fooshi consigliere",
     "fooshi consiglieri",
 
-    # Capo variations
     "fooshi capo",
     "fooshi capos",
 
-    # Soldier variations
     "fooshi soldier",
     "fooshi soldiers",
 
-    # fallback matches (extra safety)
     "consigliere",
     "consiglieri",
     "capo",
@@ -128,7 +120,6 @@ VRC_STAFF_ROLE_NAMES = {
 
 # ============================================================
 # STAFF ALERT ORDER
-# order in which higher staff are pinged when thresholds hit
 # ============================================================
 
 STAFF_ALERT_ORDER = {
@@ -138,38 +129,73 @@ STAFF_ALERT_ORDER = {
         (
             "Fooshi Soldier",
             [
-                {"discord_id": 388783101184180224, "vrchat_user_id": "usr_8c95ece0-3e42-4b78-9036-5fc75aa5ca3c"},
-                {"discord_id": 1344857878284075031, "vrchat_user_id": "usr_3806653f-d199-475c-aca0-b17826d84964"},
+
+                # Finley
+                {
+                    "discord_id": 388783101184180224,
+                    "vrchat_user_id": "usr_8c95ece0-3e42-4b78-9036-5fc75aa5ca3c"
+                },
+
+                # Atabey
+                {
+                    "discord_id": 924925123184717904,
+                    "vrchat_user_id": "usr_83b26675-1275-446a-a587-57c66c968170"
+                },
+
+                # Daw3
+                {
+                    "discord_id": 1344857878284075031,
+                    "vrchat_user_id": "usr_3806653f-d199-475c-aca0-b17826d84964"
+                },
+
             ],
         ),
 
         (
             "Fooshi Capo",
             [
-                {"discord_id": 697602081233829975, "vrchat_user_id": "usr_b1431dfd-201a-476f-8cbc-3908527cc370"},
-                {"discord_id": 933075890194235402, "vrchat_user_id": "usr_9252b0c1-586d-47c8-8282-314a30ef3eac"},
+                {
+                    "discord_id": 697602081233829975,
+                    "vrchat_user_id": "usr_b1431dfd-201a-476f-8cbc-3908527cc370"
+                },
+                {
+                    "discord_id": 933075890194235402,
+                    "vrchat_user_id": "usr_9252b0c1-586d-47c8-8282-314a30ef3eac"
+                },
             ],
         ),
 
         (
             "Fooshi Consigliere",
             [
-                {"discord_id": 862857344286326864, "vrchat_user_id": "usr_1560e59a-983c-4802-90ee-88963b1893dd"},
-                {"discord_id": 1096271363007840369, "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"},
+                {
+                    "discord_id": 862857344286326864,
+                    "vrchat_user_id": "usr_1560e59a-983c-4802-90ee-88963b1893dd"
+                },
+                {
+                    "discord_id": 1096271363007840369,
+                    "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"
+                },
             ],
         ),
 
         (
             "Fooshi Underboss",
             [
-                {"discord_id": 638482686612078614, "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"},
+                {
+                    "discord_id": 638482686612078614,
+                    "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"
+                },
             ],
         ),
 
         (
             "Godfooshi",
             [
-                {"discord_id": 899310036965294131, "vrchat_user_id": "usr_e7f83a47-a121-428d-a79b-72ae1c618705"},
+                {
+                    "discord_id": 899310036965294131,
+                    "vrchat_user_id": "usr_e7f83a47-a121-428d-a79b-72ae1c618705"
+                },
             ],
         ),
     ],
@@ -179,30 +205,48 @@ STAFF_ALERT_ORDER = {
         (
             "Fooshi Capo",
             [
-                {"discord_id": 697602081233829975, "vrchat_user_id": "usr_b1431dfd-201a-476f-8cbc-3908527cc370"},
-                {"discord_id": 933075890194235402, "vrchat_user_id": "usr_9252b0c1-586d-47c8-8282-314a30ef3eac"},
+                {
+                    "discord_id": 697602081233829975,
+                    "vrchat_user_id": "usr_b1431dfd-201a-476f-8cbc-3908527cc370"
+                },
+                {
+                    "discord_id": 933075890194235402,
+                    "vrchat_user_id": "usr_9252b0c1-586d-47c8-8282-314a30ef3eac"
+                },
             ],
         ),
 
         (
             "Fooshi Consigliere",
             [
-                {"discord_id": 862857344286326864, "vrchat_user_id": "usr_1560e59a-983c-4802-90ee-88963b1893dd"},
-                {"discord_id": 1096271363007840369, "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"},
+                {
+                    "discord_id": 862857344286326864,
+                    "vrchat_user_id": "usr_1560e59a-983c-4802-90ee-88963b1893dd"
+                },
+                {
+                    "discord_id": 1096271363007840369,
+                    "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"
+                },
             ],
         ),
 
         (
             "Fooshi Underboss",
             [
-                {"discord_id": 638482686612078614, "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"},
+                {
+                    "discord_id": 638482686612078614,
+                    "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"
+                },
             ],
         ),
 
         (
             "Godfooshi",
             [
-                {"discord_id": 899310036965294131, "vrchat_user_id": "usr_e7f83a47-a121-428d-a79b-72ae1c618705"},
+                {
+                    "discord_id": 899310036965294131,
+                    "vrchat_user_id": "usr_e7f83a47-a121-428d-a79b-72ae1c618705"
+                },
             ],
         ),
     ],
@@ -212,22 +256,34 @@ STAFF_ALERT_ORDER = {
         (
             "Fooshi Consigliere",
             [
-                {"discord_id": 862857344286326864, "vrchat_user_id": "usr_1560e59a-983c-4802-90ee-88963b1893dd"},
-                {"discord_id": 1096271363007840369, "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"},
+                {
+                    "discord_id": 862857344286326864,
+                    "vrchat_user_id": "usr_1560e59a-983c-4802-90ee-88963b1893dd"
+                },
+                {
+                    "discord_id": 1096271363007840369,
+                    "vrchat_user_id": "usr_d19a8408-8991-4822-88f5-38093ccb4620"
+                },
             ],
         ),
 
         (
             "Fooshi Underboss",
             [
-                {"discord_id": 638482686612078614, "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"},
+                {
+                    "discord_id": 638482686612078614,
+                    "vrchat_user_id": "usr_3d664c85-ce46-4441-9a92-5a58946098c3"
+                },
             ],
         ),
 
         (
             "Godfooshi",
             [
-                {"discord_id": 899310036965294131, "vrchat_user_id": "usr_e7f83a47-a121-428d-a79b-72ae1c618705"},
+                {
+                    "discord_id": 899310036965294131,
+                    "vrchat_user_id": "usr_e7f83a47-a121-428d-a79b-72ae1c618705"
+                },
             ],
         ),
     ],
