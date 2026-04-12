@@ -138,6 +138,18 @@ def _get_repeat_entry(target_id: str, target_name: str | None = None) -> tuple[d
             existing[key] = normalized
             changed = True
 
+    current_name = str(existing.get("name") or "").strip()
+    new_name = str(target_name or "").strip()
+    fallback_name = _fallback_name_for_target(target_id)
+
+    if new_name and new_name != fallback_name and new_name.lower() != "unknown":
+        if current_name != new_name:
+            existing["name"] = new_name
+            changed = True
+    elif not current_name:
+        existing["name"] = fallback_name
+        changed = True
+
     return existing, changed
 
 
@@ -162,7 +174,7 @@ def _track_repeat_offender(entry, action: str) -> bool:
     )
     repeat_entry["last_action"] = action
 
-    return True
+    return True or changed
 
 
 def _apply_action_to_section(
@@ -290,6 +302,13 @@ async def _is_staff_actor(actor_id: str) -> bool:
         return False
 
 
+async def _is_staff_target(target_id: str) -> bool:
+    try:
+        return await vrc_user_is_staff(str(target_id))
+    except Exception:
+        return False
+
+
 async def process_audit_log_entry(
     entry,
     monthly_only: bool = False,
@@ -309,11 +328,22 @@ async def process_audit_log_entry(
     if not await _is_staff_actor(actor_id):
         return False, False
 
+    target_id = _get_target_id(entry)
+    target_is_staff = False
+
+    if target_id:
+        target_id = str(target_id)
+        target_is_staff = await _is_staff_target(target_id)
+
     _ensure_staff_in_needed_sections(
         actor_id,
         actor_name,
         monthly_only=monthly_only,
     )
+
+    # do not count moderation actions against staff
+    if action in _MOD_ACTIONS and target_is_staff:
+        return True, False
 
     if action in _MOD_ACTIONS:
         _track_repeat_offender(entry, action)
