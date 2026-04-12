@@ -5,6 +5,7 @@ import os
 import time
 from http.cookies import SimpleCookie
 from urllib.parse import quote
+from typing import Any
 
 import urllib3
 import websockets
@@ -71,22 +72,58 @@ def _normalize_vrc_user_id(value: str | None) -> str | None:
     return cleaned or None
 
 
-def _normalize_status_value(value) -> str:
+def _normalize_status_value(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
-def _extract_role_name(role_obj) -> str | None:
-    for field in ("name", "display_name", "role_name"):
-        if (value := str(getattr(role_obj, field, None) or "").strip()):
+def _extract_first_str_attr(obj: Any, field_names: tuple[str, ...]) -> str | None:
+    for field in field_names:
+        value = str(getattr(obj, field, None) or "").strip()
+        if value:
             return value
     return None
+
+
+def _extract_role_name(role_obj) -> str | None:
+    return _extract_first_str_attr(role_obj, ("name", "display_name", "role_name"))
 
 
 def _extract_role_id(role_obj) -> str | None:
-    for field in ("id", "role_id"):
-        if (value := str(getattr(role_obj, field, None) or "").strip()):
-            return value
-    return None
+    return _extract_first_str_attr(role_obj, ("id", "role_id"))
+
+
+def _extract_member_display_name(member_obj) -> str | None:
+    return _extract_first_str_attr(
+        member_obj,
+        (
+            "display_name",
+            "displayName",
+            "user_display_name",
+            "userDisplayName",
+            "username",
+            "user_name",
+            "name",
+        ),
+    )
+
+
+def _extract_group_name(group_obj) -> str | None:
+    return _extract_first_str_attr(
+        group_obj,
+        ("name", "display_name", "displayName", "group_name"),
+    )
+
+
+def _extract_group_id(group_obj) -> str | None:
+    return _extract_first_str_attr(group_obj, ("id", "group_id", "groupId"))
+
+
+def _fallback_user_name(user_id: str) -> str:
+    return f"User {str(user_id).replace('usr_', '')[:8]}"
+
+
+def _unique_list(values: list[str]) -> list[str]:
+    return list(set(values))
 
 
 def _member_role_names_from_obj(member_obj) -> list[str]:
@@ -95,16 +132,20 @@ def _member_role_names_from_obj(member_obj) -> list[str]:
     for field in ("roles", "role_names"):
         for value in getattr(member_obj, field, None) or []:
             if hasattr(value, "__dict__"):
-                if name := _extract_role_name(value):
-                    role_names.append(name.lower())
-            elif s := str(value).strip().lower():
-                role_names.append(s)
+                role_name = _extract_role_name(value)
+                if role_name:
+                    role_names.append(role_name.lower())
+            else:
+                text = str(value).strip().lower()
+                if text:
+                    role_names.append(text)
 
     for role_id in getattr(member_obj, "role_ids", None) or []:
-        if role_name := app_state.vrc_group_role_map.get(str(role_id)):
+        role_name = app_state.vrc_group_role_map.get(str(role_id))
+        if role_name:
             role_names.append(role_name.lower())
 
-    return list(set(role_names))
+    return _unique_list(role_names)
 
 
 def _member_role_ids_from_obj(member_obj) -> list[str]:
@@ -112,75 +153,51 @@ def _member_role_ids_from_obj(member_obj) -> list[str]:
 
     for field in ("role_ids", "roleIds"):
         for value in getattr(member_obj, field, None) or []:
-            if cleaned := str(value or "").strip():
+            cleaned = str(value or "").strip()
+            if cleaned:
                 role_ids.append(cleaned)
 
     for field in ("roles", "role_names"):
         for value in getattr(member_obj, field, None) or []:
             if hasattr(value, "__dict__"):
-                if role_id := _extract_role_id(value):
+                role_id = _extract_role_id(value)
+                if role_id:
                     role_ids.append(role_id)
 
-    return list(set(role_ids))
-
-
-def _extract_member_display_name(member_obj) -> str | None:
-    for field in (
-        "display_name",
-        "displayName",
-        "user_display_name",
-        "userDisplayName",
-        "username",
-        "user_name",
-        "name",
-    ):
-        if value := str(getattr(member_obj, field, None) or "").strip():
-            return value
-    return None
-
-
-def _extract_group_name(group_obj) -> str | None:
-    for field in ("name", "display_name", "displayName", "group_name"):
-        if (value := str(getattr(group_obj, field, None) or "").strip()):
-            return value
-    return None
-
-
-def _extract_group_id(group_obj) -> str | None:
-    for field in ("id", "group_id", "groupId"):
-        if (value := str(getattr(group_obj, field, None) or "").strip()):
-            return value
-    return None
-
-
-def _fallback_user_name(user_id: str) -> str:
-    return f"User {str(user_id).replace('usr_', '')[:8]}"
+    return _unique_list(role_ids)
 
 
 # ============================================================
 # CACHE STALENESS
 # ============================================================
 
+def _is_stale(last_refresh: float | None, ttl_seconds: int) -> bool:
+    return (_now_ts() - float(last_refresh or 0.0)) >= ttl_seconds
+
+
 def _role_cache_is_stale() -> bool:
-    return (
-        _now_ts() - (getattr(app_state, "vrc_group_roles_last_refresh", 0.0) or 0.0)
-    ) >= GROUP_ROLE_REFRESH_TTL_SECONDS
+    return _is_stale(
+        getattr(app_state, "vrc_group_roles_last_refresh", 0.0),
+        GROUP_ROLE_REFRESH_TTL_SECONDS,
+    )
 
 
 def _member_cache_is_stale() -> bool:
-    return (
-        _now_ts() - (getattr(app_state, "vrc_group_members_last_refresh", 0.0) or 0.0)
-    ) >= GROUP_MEMBER_REFRESH_TTL_SECONDS
+    return _is_stale(
+        getattr(app_state, "vrc_group_members_last_refresh", 0.0),
+        GROUP_MEMBER_REFRESH_TTL_SECONDS,
+    )
 
 
 def _group_info_cache_is_stale() -> bool:
-    return (
-        _now_ts() - (getattr(app_state, "vrc_group_info_last_refresh", 0.0) or 0.0)
-    ) >= GROUP_INFO_REFRESH_TTL_SECONDS
+    return _is_stale(
+        getattr(app_state, "vrc_group_info_last_refresh", 0.0),
+        GROUP_INFO_REFRESH_TTL_SECONDS,
+    )
 
 
 def _pipeline_cache_is_stale() -> bool:
-    last = getattr(app_state, "vrc_pipeline_last_event_ts", 0.0) or 0.0
+    last = float(getattr(app_state, "vrc_pipeline_last_event_ts", 0.0) or 0.0)
     return last <= 0 or (_now_ts() - last) >= PIPELINE_STALE_SECONDS
 
 
@@ -323,24 +340,25 @@ async def _send_rate_limited_error(
 def mark_vrc_user_recently_active(user_id: str) -> None:
     _ensure_recent_activity_state()
 
-    if user_id := str(user_id or "").strip():
-        app_state.vrc_recent_activity[user_id] = _now_ts()
-        log.debug("recent_activity marked user_id=%s", user_id)
+    cleaned = str(user_id or "").strip()
+    if cleaned:
+        app_state.vrc_recent_activity[cleaned] = _now_ts()
+        log.debug("recent_activity marked user_id=%s", cleaned)
 
 
 def _is_vrc_user_recently_active(user_id: str) -> bool:
     _ensure_recent_activity_state()
 
-    user_id = str(user_id or "").strip()
-    if not user_id:
+    cleaned = str(user_id or "").strip()
+    if not cleaned:
         return False
 
-    ts = float(app_state.vrc_recent_activity.get(user_id, 0.0) or 0.0)
+    ts = float(app_state.vrc_recent_activity.get(cleaned, 0.0) or 0.0)
     is_recent = ts > 0 and (_now_ts() - ts) <= RECENT_ACTIVITY_WINDOW_SECONDS
 
     log.debug(
         "recent_activity check user_id=%s last_seen=%s recent=%s",
-        user_id,
+        cleaned,
         ts,
         is_recent,
     )
@@ -362,11 +380,11 @@ def _set_pipeline_presence(
 ) -> bool:
     _ensure_pipeline_state()
 
-    user_id = str(user_id or "").strip()
-    if not user_id:
+    cleaned_user_id = str(user_id or "").strip()
+    if not cleaned_user_id:
         return False
 
-    old = app_state.vrc_pipeline_friend_presence.get(user_id, {})
+    old = app_state.vrc_pipeline_friend_presence.get(cleaned_user_id, {})
     new_location = str(location or "").strip().lower()
     new_platform = str(platform or "").strip().lower()
 
@@ -377,7 +395,7 @@ def _set_pipeline_presence(
         or old.get("source_event") != source_event
     )
 
-    app_state.vrc_pipeline_friend_presence[user_id] = {
+    app_state.vrc_pipeline_friend_presence[cleaned_user_id] = {
         **old,
         "online": bool(online),
         "source_event": source_event,
@@ -393,16 +411,19 @@ def _set_pipeline_presence(
 def _get_pipeline_presence(user_id: str) -> dict | None:
     _ensure_pipeline_state()
 
-    user_id = str(user_id or "").strip()
-    if not user_id:
+    cleaned_user_id = str(user_id or "").strip()
+    if not cleaned_user_id:
         return None
 
-    entry = app_state.vrc_pipeline_friend_presence.get(user_id)
+    entry = app_state.vrc_pipeline_friend_presence.get(cleaned_user_id)
     if not entry:
         return None
 
     updated_at = float(entry.get("updated_at", 0.0) or 0.0)
-    return None if updated_at <= 0 or (_now_ts() - updated_at) >= PIPELINE_STALE_SECONDS else entry
+    if updated_at <= 0 or (_now_ts() - updated_at) >= PIPELINE_STALE_SECONDS:
+        return None
+
+    return entry
 
 
 # ============================================================
@@ -469,7 +490,8 @@ def _extract_auth_cookie_from_client() -> str | None:
                         parsed = SimpleCookie()
                         parsed.load(v)
                         for cookie_name in ("auth", "authtoken"):
-                            if (morsel := parsed.get(cookie_name)) and morsel.value:
+                            morsel = parsed.get(cookie_name)
+                            if morsel and morsel.value:
                                 log.debug(
                                     "found auth cookie inside Cookie header from %s",
                                     source_name,
@@ -484,7 +506,8 @@ def _extract_auth_cookie_from_client() -> str | None:
                 parsed = SimpleCookie()
                 parsed.load(raw)
                 for cookie_name in ("auth", "authtoken"):
-                    if (morsel := parsed.get(cookie_name)) and morsel.value:
+                    morsel = parsed.get(cookie_name)
+                    if morsel and morsel.value:
                         log.debug(
                             "found auth cookie inside raw string from %s",
                             source_name,
@@ -503,7 +526,8 @@ def _build_pipeline_headers() -> dict[str, str]:
         "Origin": "https://vrchat.com",
     }
 
-    if auth_cookie := _extract_auth_cookie_from_client():
+    auth_cookie = _extract_auth_cookie_from_client()
+    if auth_cookie:
         cookie = SimpleCookie()
         cookie["auth"] = auth_cookie
         headers["Cookie"] = cookie.output(header="").strip()
@@ -512,9 +536,11 @@ def _build_pipeline_headers() -> dict[str, str]:
 
 
 def _build_pipeline_url() -> str | None:
-    if auth_cookie := _extract_auth_cookie_from_client():
-        return f"{PIPELINE_URL_BASE}?authToken={quote(auth_cookie, safe='')}"
-    return None
+    auth_cookie = _extract_auth_cookie_from_client()
+    if not auth_cookie:
+        return None
+
+    return f"{PIPELINE_URL_BASE}?authToken={quote(auth_cookie, safe='')}"
 
 
 # ============================================================
@@ -530,13 +556,33 @@ def _decode_pipeline_message(raw_message: str) -> dict | None:
     if not isinstance(payload, dict):
         return None
 
-    if isinstance(content := payload.get("content"), str) and content.strip():
+    content = payload.get("content")
+    if isinstance(content, str) and content.strip():
         try:
             payload["content"] = json.loads(content.strip())
         except Exception:
             pass
 
     return payload
+
+
+def _schedule_status_update(
+    *,
+    user_id: str,
+    ws_online: bool | None,
+    friend_presence: bool | None,
+    user_status: str | None,
+    last_platform: str | None,
+) -> None:
+    asyncio.create_task(
+        process_user_status(
+            user_id=user_id,
+            ws_online=ws_online,
+            friend_presence=friend_presence,
+            user_status=user_status,
+            last_platform=last_platform,
+        )
+    )
 
 
 def _handle_pipeline_event(payload: dict) -> None:
@@ -555,7 +601,8 @@ def _handle_pipeline_event(payload: dict) -> None:
     if not user_id:
         return
 
-    if isinstance(user_obj := content.get("user"), dict):
+    user_obj = content.get("user")
+    if isinstance(user_obj, dict):
         display_name = str(
             user_obj.get("displayName")
             or user_obj.get("display_name")
@@ -567,7 +614,6 @@ def _handle_pipeline_event(payload: dict) -> None:
 
     location = str(content.get("location", "") or "").strip().lower()
     platform = str(content.get("platform", "") or "").strip().lower()
-
     offline_locations = {"", "offline", "offline:offline"}
 
     if event_type == "friend-online":
@@ -578,14 +624,12 @@ def _handle_pipeline_event(payload: dict) -> None:
             location=location,
             platform=platform,
         )
-        asyncio.create_task(
-            process_user_status(
-                user_id=user_id,
-                ws_online=True,
-                friend_presence=True,
-                user_status="active",
-                last_platform=platform,
-            )
+        _schedule_status_update(
+            user_id=user_id,
+            ws_online=True,
+            friend_presence=True,
+            user_status="active",
+            last_platform=platform,
         )
         if changed:
             log.info(
@@ -594,8 +638,9 @@ def _handle_pipeline_event(payload: dict) -> None:
                 location,
                 platform,
             )
+        return
 
-    elif event_type == "friend-location":
+    if event_type == "friend-location":
         online = location not in offline_locations
         changed = _set_pipeline_presence(
             user_id,
@@ -604,14 +649,12 @@ def _handle_pipeline_event(payload: dict) -> None:
             location=location,
             platform=platform,
         )
-        asyncio.create_task(
-            process_user_status(
-                user_id=user_id,
-                ws_online=online,
-                friend_presence=online,
-                user_status="active" if online else "offline",
-                last_platform=platform,
-            )
+        _schedule_status_update(
+            user_id=user_id,
+            ws_online=online,
+            friend_presence=online,
+            user_status="active" if online else "offline",
+            last_platform=platform,
         )
         if changed:
             log.info(
@@ -620,10 +663,10 @@ def _handle_pipeline_event(payload: dict) -> None:
                 location,
                 online,
             )
+        return
 
-    elif event_type == "friend-active":
+    if event_type == "friend-active":
         effective_platform = platform or "web"
-
         changed = _set_pipeline_presence(
             user_id,
             online=True,
@@ -631,25 +674,22 @@ def _handle_pipeline_event(payload: dict) -> None:
             location=location,
             platform=effective_platform,
         )
-
-        asyncio.create_task(
-            process_user_status(
-                user_id=user_id,
-                ws_online=None,
-                friend_presence=True,
-                user_status="active",
-                last_platform=effective_platform,
-            )
+        _schedule_status_update(
+            user_id=user_id,
+            ws_online=None,
+            friend_presence=True,
+            user_status="active",
+            last_platform=effective_platform,
         )
-
         if changed:
             log.info(
                 "pipeline friend-active user_id=%s platform=%r",
                 user_id,
                 effective_platform,
             )
+        return
 
-    elif event_type == "friend-offline":
+    if event_type == "friend-offline":
         changed = _set_pipeline_presence(
             user_id,
             online=False,
@@ -657,20 +697,18 @@ def _handle_pipeline_event(payload: dict) -> None:
             location="offline",
             platform=platform,
         )
-        asyncio.create_task(
-            process_user_status(
-                user_id=user_id,
-                ws_online=False,
-                friend_presence=False,
-                user_status="offline",
-                last_platform=platform,
-            )
+        _schedule_status_update(
+            user_id=user_id,
+            ws_online=False,
+            friend_presence=False,
+            user_status="offline",
+            last_platform=platform,
         )
         if changed:
             log.info("pipeline friend-offline user_id=%s", user_id)
+        return
 
-    else:
-        log.debug("pipeline ignored event_type=%s user_id=%s", event_type, user_id)
+    log.debug("pipeline ignored event_type=%s user_id=%s", event_type, user_id)
 
 
 async def _pipeline_receiver_loop() -> None:
@@ -708,7 +746,8 @@ async def _pipeline_receiver_loop() -> None:
                 log.info("pipeline connected")
 
                 async for raw_message in ws:
-                    if payload := _decode_pipeline_message(raw_message):
+                    payload = _decode_pipeline_message(raw_message)
+                    if payload:
                         _handle_pipeline_event(payload)
 
         except asyncio.CancelledError:
@@ -783,12 +822,14 @@ async def _refresh_friend_presence_cache(force: bool = False) -> dict[str, bool]
         cache: dict[str, bool] = {}
 
         for uid in offline:
-            if uid := str(uid or "").strip():
-                cache[uid] = False
+            cleaned = str(uid or "").strip()
+            if cleaned:
+                cache[cleaned] = False
 
         for uid in (*online, *active):
-            if uid := str(uid or "").strip():
-                cache[uid] = True
+            cleaned = str(uid or "").strip()
+            if cleaned:
+                cache[cleaned] = True
 
         app_state.vrc_friend_presence_cache = cache
         app_state.vrc_friend_presence_last_refresh = _now_ts()
@@ -810,13 +851,13 @@ async def _refresh_friend_presence_cache(force: bool = False) -> dict[str, bool]
 
 async def _get_friend_presence_online(user_id: str) -> bool | None:
     cache = await _refresh_friend_presence_cache(force=False)
-    user_id = str(user_id or "").strip()
+    cleaned_user_id = str(user_id or "").strip()
 
-    if not user_id or user_id not in cache:
+    if not cleaned_user_id or cleaned_user_id not in cache:
         return None
 
-    is_online = bool(cache[user_id])
-    log.debug("friend_presence user_id=%s is_online=%s", user_id, is_online)
+    is_online = bool(cache[cleaned_user_id])
+    log.debug("friend_presence user_id=%s is_online=%s", cleaned_user_id, is_online)
     return is_online
 
 
@@ -825,13 +866,19 @@ async def _get_friend_presence_online(user_id: str) -> bool | None:
 # ============================================================
 
 def get_cached_vrc_user_roles(user_id: str) -> list[str]:
-    user_id = str(user_id or "").strip()
-    return app_state.vrc_group_member_roles.get(user_id, []) if user_id else []
+    cleaned_user_id = str(user_id or "").strip()
+    if not cleaned_user_id:
+        return []
+
+    return app_state.vrc_group_member_roles.get(cleaned_user_id, [])
 
 
 def get_cached_vrc_user_role_ids(user_id: str) -> list[str]:
-    user_id = str(user_id or "").strip()
-    return app_state.vrc_group_member_role_ids.get(user_id, []) if user_id else []
+    cleaned_user_id = str(user_id or "").strip()
+    if not cleaned_user_id:
+        return []
+
+    return app_state.vrc_group_member_role_ids.get(cleaned_user_id, [])
 
 
 def is_cached_vrc_user_staff(user_id: str) -> bool:
@@ -839,36 +886,35 @@ def is_cached_vrc_user_staff(user_id: str) -> bool:
     staff_role_ids = {str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())}
 
     role_name_match = any(
-        str(r).strip().casefold() in wanted
-        for r in get_cached_vrc_user_roles(user_id)
+        str(role).strip().casefold() in wanted
+        for role in get_cached_vrc_user_roles(user_id)
     )
-
     role_id_match = any(
-        str(rid).strip() in staff_role_ids
-        for rid in get_cached_vrc_user_role_ids(user_id)
+        str(role_id).strip() in staff_role_ids
+        for role_id in get_cached_vrc_user_role_ids(user_id)
     )
 
     return role_name_match or role_id_match
 
 
 async def vrc_user_is_staff(user_id: str) -> bool:
-    user_id = str(user_id or "").strip()
-    if not user_id:
+    cleaned_user_id = str(user_id or "").strip()
+    if not cleaned_user_id:
         return False
 
-    if is_cached_vrc_user_staff(user_id):
+    if is_cached_vrc_user_staff(cleaned_user_id):
         return True
 
     if not app_state.vrc_group_member_roles:
         await ensure_vrc_group_cache_ready()
 
-    if is_cached_vrc_user_staff(user_id):
+    if is_cached_vrc_user_staff(cleaned_user_id):
         return True
 
     if _member_cache_is_stale():
         await refresh_vrc_group_members(force=True)
 
-    return is_cached_vrc_user_staff(user_id)
+    return is_cached_vrc_user_staff(cleaned_user_id)
 
 
 async def get_pretty_vrc_name(entry) -> tuple[str, str]:
@@ -877,11 +923,13 @@ async def get_pretty_vrc_name(entry) -> tuple[str, str]:
         return "Unknown User", "N/A"
 
     for field in ("target_display_name", "target_username", "target_name", "display_name"):
-        if (value := str(getattr(entry, field, None) or "").strip()):
+        value = str(getattr(entry, field, None) or "").strip()
+        if value:
             app_state.target_name_cache[target_id] = value
             return value, target_id
 
-    if cached := app_state.target_name_cache.get(target_id):
+    cached = app_state.target_name_cache.get(target_id)
+    if cached:
         return cached, target_id
 
     short_id = target_id.replace("usr_", "")[:8]
@@ -1067,7 +1115,8 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                     new_role_cache[user_id] = _member_role_names_from_obj(member)
                     new_role_id_cache[user_id] = _member_role_ids_from_obj(member)
 
-                    if display_name := _extract_member_display_name(member):
+                    display_name = _extract_member_display_name(member)
+                    if display_name:
                         app_state.target_name_cache[user_id] = display_name
 
                 loaded_now = len(members)
@@ -1082,7 +1131,9 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                     len(new_role_cache),
                 )
 
-                consecutive_no_growth_pages = consecutive_no_growth_pages + 1 if growth <= 0 else 0
+                consecutive_no_growth_pages = (
+                    consecutive_no_growth_pages + 1 if growth <= 0 else 0
+                )
                 offset += loaded_now
 
                 if loaded_now < batch_size:
@@ -1090,7 +1141,8 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
 
                 if consecutive_no_growth_pages >= 2:
                     log.warning(
-                        "group_members stopping early due to repeated no-growth pages (pages=%s cache_size=%s duplicates=%s)",
+                        "group_members stopping early due to repeated no-growth pages "
+                        "(pages=%s cache_size=%s duplicates=%s)",
                         page_count,
                         len(new_role_cache),
                         duplicate_user_ids,
@@ -1104,10 +1156,10 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                 return
 
             old_count = len(old_role_cache)
-
             if old_count > 0 and len(new_role_cache) < max(50, int(old_count * 0.60)):
                 log.warning(
-                    "group_members refresh looked partial; keeping old cache (new=%s old=%s api_rows=%s duplicates=%s pages=%s)",
+                    "group_members refresh looked partial; keeping old cache "
+                    "(new=%s old=%s api_rows=%s duplicates=%s pages=%s)",
                     len(new_role_cache),
                     old_count,
                     total_rows,
@@ -1117,7 +1169,9 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                 return
 
             wanted_roles = {str(x).strip().casefold() for x in VRC_STAFF_ROLE_NAMES}
-            staff_role_ids = {str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())}
+            staff_role_ids = {
+                str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())
+            }
 
             preserved_staff = 0
             for user_id, old_roles in old_role_cache.items():
@@ -1130,8 +1184,8 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                     str(role).strip().casefold() in wanted_roles
                     for role in (old_roles or [])
                 ) or any(
-                    str(rid).strip() in staff_role_ids
-                    for rid in (old_role_ids or [])
+                    str(role_id).strip() in staff_role_ids
+                    for role_id in (old_role_ids or [])
                 )
 
                 if old_is_staff:
@@ -1148,7 +1202,8 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                 app_state.sync_cache_aliases()
 
             log.info(
-                "cached %s VRC group members (api_rows=%s missing_user_id=%s duplicates=%s pages=%s old_cache=%s preserved_staff=%s)",
+                "cached %s VRC group members "
+                "(api_rows=%s missing_user_id=%s duplicates=%s pages=%s old_cache=%s preserved_staff=%s)",
                 len(new_role_cache),
                 total_rows,
                 missing_user_id,
@@ -1169,7 +1224,9 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
 async def ensure_vrc_group_cache_ready() -> None:
     if not app_state.vrc_group_member_roles and not vrchat_cooldown_active():
         await refresh_vrc_group_members(force=True)
-    elif not getattr(app_state, "group_cache", None) and not vrchat_cooldown_active():
+        return
+
+    if not getattr(app_state, "group_cache", None) and not vrchat_cooldown_active():
         await refresh_group_cache_once(force=True)
 
 
@@ -1181,7 +1238,8 @@ async def resolve_vrchat_user_id(
     vrchat_username: str | None = None,
     vrchat_user_id: str | None = None,
 ) -> str | None:
-    if explicit_id := _normalize_vrc_user_id(vrchat_user_id):
+    explicit_id = _normalize_vrc_user_id(vrchat_user_id)
+    if explicit_id:
         return explicit_id
 
     wanted_name = _normalize_vrc_name(vrchat_username)
@@ -1201,7 +1259,8 @@ async def resolve_vrchat_user_id(
             None,
         )
 
-    if result := _scan_cache():
+    result = _scan_cache()
+    if result:
         return result
 
     if _member_cache_is_stale() and not vrchat_cooldown_active():
@@ -1211,7 +1270,9 @@ async def resolve_vrchat_user_id(
     return None
 
 
-async def _fetch_vrchat_presence_snapshot(resolved_user_id: str) -> tuple[str, str, str, str]:
+async def _fetch_vrchat_presence_snapshot(
+    resolved_user_id: str,
+) -> tuple[str, str, str, str]:
     user = await _run_vrc_api_call(app_state.vrc_users_api.get_user, resolved_user_id)
     return (
         _normalize_status_value(getattr(user, "status", "")),
@@ -1336,7 +1397,11 @@ async def get_vrchat_user_status(
             await asyncio.sleep(AMBIGUOUS_STATUS_RECHECK_SECONDS)
             raw_status_2, _, _, _, is_online_2, is_ambiguous_2 = await _snapshot_and_process()
 
-            return True if is_online_2 and not is_ambiguous_2 else False, resolved_user_id, raw_status_2
+            return (
+                True if is_online_2 and not is_ambiguous_2 else False,
+                resolved_user_id,
+                raw_status_2,
+            )
 
         return is_online, resolved_user_id, raw_status
 
@@ -1376,7 +1441,6 @@ async def is_vrchat_user_online(
         return False
 
     entry = _get_pipeline_presence(resolved_user_id)
-
     if entry and not _pipeline_cache_is_stale():
         is_online = bool(entry.get("online", False))
         log.debug("online_check pipeline user_id=%s online=%s", resolved_user_id, is_online)
@@ -1384,7 +1448,11 @@ async def is_vrchat_user_online(
 
     friend_online = await _get_friend_presence_online(resolved_user_id)
     if friend_online is not None:
-        log.debug("online_check friend_presence user_id=%s online=%s", resolved_user_id, friend_online)
+        log.debug(
+            "online_check friend_presence user_id=%s online=%s",
+            resolved_user_id,
+            friend_online,
+        )
         return friend_online
 
     if _is_vrc_user_recently_active(resolved_user_id):
@@ -1483,7 +1551,8 @@ async def login_vrchat() -> bool:
 
         log.info("VRChat login successful: %s", user.display_name)
 
-        if cookie := _extract_auth_cookie_from_client():
+        cookie = _extract_auth_cookie_from_client()
+        if cookie:
             log.info("SAVE THIS COOKIE IN YOUR .env")
             log.info("VRCHAT_AUTH_COOKIE=%s", cookie)
         else:
@@ -1546,10 +1615,7 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
         if _member_cache_is_stale():
             await refresh_vrc_group_members(force=True)
 
-    wanted_roles = {
-        str(role).strip().casefold()
-        for role in VRC_STAFF_ROLE_NAMES
-    }
+    wanted_roles = {str(role).strip().casefold() for role in VRC_STAFF_ROLE_NAMES}
     staff_role_ids = {
         str(role_id).strip()
         for role_id in getattr(app_state, "vrchat_staff_role_ids", set())
@@ -1558,11 +1624,15 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
     results: list[dict] = []
 
     for user_id, roles in (app_state.vrc_group_member_roles or {}).items():
-        normalized_roles = [str(r).strip().casefold() for r in (roles or []) if str(r).strip()]
+        normalized_roles = [
+            str(role).strip().casefold()
+            for role in (roles or [])
+            if str(role).strip()
+        ]
         normalized_role_ids = [
-            str(rid).strip()
-            for rid in (app_state.vrc_group_member_role_ids.get(user_id, []) or [])
-            if str(rid).strip()
+            str(role_id).strip()
+            for role_id in (app_state.vrc_group_member_role_ids.get(user_id, []) or [])
+            if str(role_id).strip()
         ]
 
         has_staff_role = any(role in wanted_roles for role in normalized_roles)
@@ -1572,24 +1642,21 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
             continue
 
         display_name = str(
-            app_state.target_name_cache.get(user_id)
-            or _fallback_user_name(user_id)
+            app_state.target_name_cache.get(user_id) or _fallback_user_name(user_id)
         ).strip()
 
-        results.append({
-            "user_id": str(user_id),
-            "display_name": display_name,
-            "roles": normalized_roles,
-            "role_ids": normalized_role_ids,
-        })
+        results.append(
+            {
+                "user_id": str(user_id),
+                "display_name": display_name,
+                "roles": normalized_roles,
+                "role_ids": normalized_role_ids,
+            }
+        )
 
-    results.sort(key=lambda x: x["display_name"].casefold())
+    results.sort(key=lambda entry: entry["display_name"].casefold())
 
-    log.info(
-        "VRC staff sync found %s staff members",
-        len(results),
-    )
-
+    log.info("VRC staff sync found %s staff members", len(results))
     return results
 
 
