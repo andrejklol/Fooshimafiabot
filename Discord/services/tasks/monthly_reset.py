@@ -6,61 +6,63 @@ from services.leaderboard.service import reset_monthly_leaderboard_data
 
 log = logging.getLogger("monthly_reset")
 
-last_reset_month: int | None = None
+_last_reset_month: int | None = None
+
+
+def _current_month() -> int:
+    return datetime.now(UTC).month
 
 
 def initialize_monthly_reset_state() -> None:
     """
-    Called once when the bot starts so we don't trigger
-    a false reset on first loop tick.
+    Called once at bot startup so the first loop tick
+    does not trigger a false reset.
     """
-    global last_reset_month
+    global _last_reset_month
 
-    last_reset_month = datetime.now(UTC).month
+    _last_reset_month = _current_month()
 
     log.info(
         "monthly reset initialized month=%s",
-        last_reset_month,
+        _last_reset_month,
     )
 
 
 async def check_monthly_reset() -> bool:
     """
-    Checks once per minute if the month changed.
+    Checks if the month changed.
 
     Returns:
-        True if reset happened
-        False if nothing changed
+        True  -> reset triggered
+        False -> no reset needed
     """
-    global last_reset_month
+    global _last_reset_month
 
-    now = datetime.now(UTC)
+    current_month = _current_month()
 
-    if last_reset_month is None:
-
-        last_reset_month = now.month
+    # safety init if initialize wasn't called
+    if _last_reset_month is None:
+        _last_reset_month = current_month
 
         log.info(
             "monthly reset state auto-initialized month=%s",
-            last_reset_month,
+            _last_reset_month,
         )
 
         return False
 
-
-    if last_reset_month != now.month:
-
+    # month changed -> reset leaderboard
+    if _last_reset_month != current_month:
         log.info(
             "monthly leaderboard reset triggered old=%s new=%s",
-            last_reset_month,
-            now.month,
+            _last_reset_month,
+            current_month,
         )
 
         reset_monthly_leaderboard_data()
 
-        last_reset_month = now.month
+        _last_reset_month = current_month
 
         return True
-
 
     return False
