@@ -142,11 +142,7 @@ class Commands(commands.Cog):
         if not roles:
             return 0
 
-        highest = 0
-        for role in roles:
-            highest = max(highest, ROLE_LEVELS.get(role.id, 0))
-
-        return highest
+        return max((ROLE_LEVELS.get(role.id, 0) for role in roles), default=0)
 
     async def _require_level(self, ctx, required_level: int) -> bool:
         level = self._get_permission_level(ctx.author)
@@ -170,10 +166,9 @@ class Commands(commands.Cog):
     # ============================================================
 
     async def _defer_if_interaction(self, ctx, ephemeral: bool = True) -> None:
-        if getattr(ctx, "interaction", None):
-            if not ctx.interaction.response.is_done():
-                print("[commands] deferring interaction response")
-                await ctx.interaction.response.defer(ephemeral=ephemeral)
+        if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+            print("[commands] deferring interaction response")
+            await ctx.interaction.response.defer(ephemeral=ephemeral)
 
     async def _send_ctx_reply(
         self,
@@ -189,9 +184,17 @@ class Commands(commands.Cog):
                 embed=embed,
                 ephemeral=ephemeral,
             )
-        else:
-            print("[commands] sending normal ctx reply")
-            await ctx.send(content=content, embed=embed)
+            return
+
+        print("[commands] sending normal ctx reply")
+        await ctx.send(content=content, embed=embed)
+
+    async def _success(self, ctx, title: str, description: str, *, ephemeral: bool = True) -> None:
+        await self._send_ctx_reply(
+            ctx,
+            embed=success_embed(title, description),
+            ephemeral=ephemeral,
+        )
 
     async def _handle_admin_error(
         self,
@@ -326,19 +329,27 @@ class Commands(commands.Cog):
         elapsed = float(summary["elapsed_seconds"])
         elapsed_text = f"{elapsed:.2f}s" if elapsed > 0 else "N/A"
 
-        return (
-            f"Fetched: `{summary['fetched']}`\n"
-            f"Counted Total: `{summary['counted_total']}`\n"
-            f"Warnings: `{summary['warns']}`\n"
-            f"Kicks: `{summary['kicks']}`\n"
-            f"Bans: `{summary['bans']}`\n"
-            f"Invites: `{summary['invites']}`\n"
-            f"Skipped: `{summary['skipped']}`\n"
-            f"Elapsed: `{elapsed_text}`\n"
-            f"Requested: `{summary['requested']}`\n"
-            f"Rebuild mode: `{summary['rebuild']}`\n"
-            f"Monthly only: `{summary['monthly_only']}`"
-        )
+        lines = [
+            f"Fetched: `{summary['fetched']}`",
+            f"Counted Total: `{summary['counted_total']}`",
+            f"Warnings: `{summary['warns']}`",
+            f"Kicks: `{summary['kicks']}`",
+            f"Bans: `{summary['bans']}`",
+            f"Invites: `{summary['invites']}`",
+            f"Skipped: `{summary['skipped']}`",
+            f"Elapsed: `{elapsed_text}`",
+            f"Requested: `{summary['requested']}`",
+            f"Rebuild mode: `{summary['rebuild']}`",
+            f"Monthly only: `{summary['monthly_only']}`",
+        ]
+        return "\n".join(lines)
+
+    def _section(self, title: str, lines: list[str]) -> list[str]:
+        return [
+            f"**{title}**",
+            "\n".join(lines) if lines else "No data yet.",
+            "",
+        ]
 
     # ============================================================
     # LEADERBOARD DATA HELPERS
@@ -360,12 +371,10 @@ class Commands(commands.Cog):
         candidates: list[str],
     ) -> bool:
         record_name = str(record.get("name", "")).strip().lower()
-
         if not record_name:
             return False
 
         record_norm = self._normalize_staff_search_text(record_name)
-
         if not record_norm:
             return False
 
@@ -443,10 +452,7 @@ class Commands(commands.Cog):
 
         for staff_id, record in scope_data.items():
             name = str(record.get("name", "")).strip()
-            if not name:
-                continue
-
-            if name.lower() == lowered:
+            if name and name.lower() == lowered:
                 return staff_id, record
 
         for staff_id, record in scope_data.items():
@@ -472,7 +478,6 @@ class Commands(commands.Cog):
                 continue
 
             ratio = self._name_similarity(name_norm, normalized_query)
-
             if ratio > best_match[2]:
                 best_match = (staff_id, record, ratio)
 
@@ -518,7 +523,6 @@ class Commands(commands.Cog):
         }
 
         lines: list[str] = []
-
         for index, staff in enumerate(ranked, start=1):
             name = str(staff.get("name", "Unknown"))
             value = int(staff.get(stat_key, 0) or 0)
@@ -527,7 +531,7 @@ class Commands(commands.Cog):
 
         return lines
 
-    def _build_staffrecord_embed(
+    def _build_staff_record_embed(
         self,
         staff_id: str,
         record: dict,
@@ -543,7 +547,6 @@ class Commands(commands.Cog):
         rank = self._get_staff_rank(staff_id, scope="staff")
 
         embed = info_embed(f"Staff Record — {name}")
-
         embed.add_field(name="Name", value=str(name), inline=True)
         embed.add_field(name="Staff ID", value=f"`{staff_id}`", inline=True)
         embed.add_field(name="Points", value=f"`{points}`", inline=True)
@@ -562,15 +565,30 @@ class Commands(commands.Cog):
 
         total_actions = warn_count + kick_count + ban_count + invite_count
         embed.add_field(name="Tracked Actions", value=f"`{total_actions}`", inline=True)
-
         embed.add_field(
             name="Overall Rank",
             value=f"`#{rank}`" if rank is not None else "`Unranked`",
             inline=True,
         )
-
         embed.set_footer(text=build_score_footer())
+
         return embed
+
+    # ============================================================
+    # COMMAND HELPERS
+    # ============================================================
+
+    async def _run_refresh_vrc_members(self) -> tuple[int, int, int, int]:
+        await refresh_vrc_group_members(force=True)
+        vrc_staff_members = await get_all_vrc_staff_members(force_refresh=False)
+        synced_count = await sync_all_vrc_staff_into_leaderboard(self.bot)
+
+        return (
+            len(app_state.vrc_group_member_roles),
+            len(app_state.vrc_group_role_map),
+            len(vrc_staff_members),
+            synced_count,
+        )
 
     # ============================================================
     # ADMIN COMMANDS
@@ -587,21 +605,20 @@ class Commands(commands.Cog):
         await self._defer_if_interaction(ctx)
 
         try:
-            await refresh_vrc_group_members(force=True)
-            vrc_staff_members = await get_all_vrc_staff_members(force_refresh=False)
-            synced_count = await sync_all_vrc_staff_into_leaderboard(self.bot)
-
-            await self._send_ctx_reply(
-                ctx,
-                embed=success_embed(
-                    "VRChat Members Refreshed",
-                    f"Members cached: `{len(app_state.vrc_group_member_roles)}`\n"
-                    f"Roles cached: `{len(app_state.vrc_group_role_map)}`\n"
-                    f"Detected VRC staff members: `{len(vrc_staff_members)}`\n"
-                    f"Staff synced to leaderboard: `{synced_count}`",
-                ),
-                ephemeral=True,
+            member_count, role_count, staff_count, synced_count = (
+                await self._run_refresh_vrc_members()
             )
+
+            description = "\n".join(
+                [
+                    f"Members cached: `{member_count}`",
+                    f"Roles cached: `{role_count}`",
+                    f"Detected VRC staff members: `{staff_count}`",
+                    f"Staff synced to leaderboard: `{synced_count}`",
+                ]
+            )
+
+            await self._success(ctx, "VRChat Members Refreshed", description)
 
         except Exception as exc:
             await self._handle_admin_error(
@@ -708,13 +725,10 @@ class Commands(commands.Cog):
                 monthly_only=monthly_only,
             )
 
-            await self._send_ctx_reply(
+            await self._success(
                 ctx,
-                embed=success_embed(
-                    "History Load Complete",
-                    self._build_history_summary_text(summary),
-                ),
-                ephemeral=True,
+                "History Load Complete",
+                self._build_history_summary_text(summary),
             )
 
         except Exception as exc:
@@ -753,12 +767,7 @@ class Commands(commands.Cog):
 
         try:
             result = await perform_command_sync(self.bot, clear_guild=clear_guild)
-
-            await self._send_ctx_reply(
-                ctx,
-                embed=success_embed("Commands Synced", result),
-                ephemeral=True,
-            )
+            await self._success(ctx, "Commands Synced", result)
 
         except Exception as exc:
             await self._handle_admin_error(
@@ -776,7 +785,7 @@ class Commands(commands.Cog):
         if not await self._require_level(ctx, LEVEL_CONSIGLIERE):
             return
 
-        guild = self.bot.get_guild(GUILD_ID)
+        guild = self.bot.get_guild(GUILD_ID) if hasattr(self.bot, "get_guild") else None
         if guild is None:
             await respond(
                 ctx,
@@ -843,17 +852,16 @@ class Commands(commands.Cog):
 
             if getattr(ctx, "interaction", None):
                 await ctx.interaction.followup.send(embed=header, ephemeral=True)
-
                 for chunk in chunks:
                     await ctx.interaction.followup.send(
                         f"```md\n{chunk}\n```",
                         ephemeral=True,
                     )
-            else:
-                await ctx.reply(embed=header, mention_author=False)
+                return
 
-                for chunk in chunks:
-                    await ctx.send(f"```md\n{chunk}\n```")
+            await ctx.reply(embed=header, mention_author=False)
+            for chunk in chunks:
+                await ctx.send(f"```md\n{chunk}\n```")
 
         except Exception as exc:
             await self._handle_admin_error(
@@ -893,13 +901,10 @@ class Commands(commands.Cog):
                 highest_action=action.value,
             )
 
-            await self._send_ctx_reply(
+            await self._success(
                 ctx,
-                embed=success_embed(
-                    "Repeat Alert Simulated",
-                    f"Simulated {action.value.upper()} repeat offender alert.",
-                ),
-                ephemeral=True,
+                "Repeat Alert Simulated",
+                f"Simulated {action.value.upper()} repeat offender alert.",
             )
 
         except Exception as exc:
@@ -939,13 +944,10 @@ class Commands(commands.Cog):
                 level="error",
             )
 
-            await self._send_ctx_reply(
+            await self._success(
                 ctx,
-                embed=success_embed(
-                    "Test Error Sent",
-                    "A test error was successfully sent to the error log channel.",
-                ),
-                ephemeral=True,
+                "Test Error Sent",
+                "A test error was successfully sent to the error log channel.",
             )
 
     # ============================================================
@@ -984,19 +986,15 @@ class Commands(commands.Cog):
             return
 
         amount = min(amount, 100)
-
         await self._defer_if_interaction(ctx)
 
         try:
             deleted = await ctx.channel.purge(limit=amount)
 
-            await self._send_ctx_reply(
+            await self._success(
                 ctx,
-                embed=success_embed(
-                    "Messages Cleared",
-                    f"🧹 Deleted `{len(deleted)}` messages.",
-                ),
-                ephemeral=True,
+                "Messages Cleared",
+                f"🧹 Deleted `{len(deleted)}` messages.",
             )
 
         except Exception as exc:
@@ -1011,9 +1009,7 @@ class Commands(commands.Cog):
         name="leaderboard",
         description="Show VRChat moderation leaderboard ranked by points",
     )
-    @app_commands.describe(
-        scope="Choose overall or monthly",
-    )
+    @app_commands.describe(scope="Choose overall or monthly")
     async def leaderboard(
         self,
         ctx,
@@ -1044,29 +1040,20 @@ class Commands(commands.Cog):
             top_bans = self._get_top_stat_lines("ban", data_scope, 3)
             top_invites = self._get_top_stat_lines("invite", data_scope, 3)
 
-            description_parts = [
-                "**Top Points**",
-                "\n".join(top_points) if top_points else "No data yet.",
-                "",
-                "**Top Warnings**",
-                "\n".join(top_warns) if top_warns else "No data yet.",
-                "",
-                "**Top Kicks**",
-                "\n".join(top_kicks) if top_kicks else "No data yet.",
-                "",
-                "**Top Bans**",
-                "\n".join(top_bans) if top_bans else "No data yet.",
-                "",
-                "**Top Invites**",
-                "\n".join(top_invites) if top_invites else "No data yet.",
-            ]
+            description_parts = (
+                self._section("Top Points", top_points)
+                + self._section("Top Warnings", top_warns)
+                + self._section("Top Kicks", top_kicks)
+                + self._section("Top Bans", top_bans)
+                + self._section("Top Invites", top_invites)
+            )
 
             embed = leaderboard_embed(
                 f"VRChat Moderation Leaderboard — {scope.title()}",
                 "\n".join(description_parts),
             )
-
             embed.set_footer(text=build_score_footer())
+
             await respond(ctx, embed=embed)
 
         except Exception as exc:
@@ -1122,7 +1109,7 @@ class Commands(commands.Cog):
                 )
                 return
 
-            embed = self._build_staffrecord_embed(staff_id, record, resolved_member)
+            embed = self._build_staff_record_embed(staff_id, record, resolved_member)
             await respond(ctx, embed=embed, ephemeral=True)
 
         except Exception as exc:
@@ -1140,7 +1127,7 @@ class Commands(commands.Cog):
         current: str,
     ) -> list[app_commands.Choice[str]]:
         try:
-            current = str(current or "").lower().strip()
+            current = (current or "").lower().strip()
             scope_data = self._get_scope_data("staff")
 
             choices: list[app_commands.Choice[str]] = []
@@ -1173,13 +1160,14 @@ class Commands(commands.Cog):
         current: str,
     ) -> list[app_commands.Choice[str]]:
         try:
-            current = str(current or "").lower()
+            current = (current or "").lower()
 
             return [
                 app_commands.Choice(name=option, value=option)
                 for option in _AUTOCOMPLETE_SCOPES
                 if current in option
             ]
+
         except Exception as exc:
             await send_error_log("Leaderboard Scope Autocomplete Error", exc)
             return []
@@ -1223,13 +1211,11 @@ class Commands(commands.Cog):
 
         try:
             embed = info_embed("Repeat Offender Stats")
-
             embed.add_field(
                 name="Tracked Targets",
                 value=str(len(app_state.repeat_offender_actions)),
                 inline=True,
             )
-
             embed.add_field(
                 name="Alert Keys",
                 value=str(len(app_state.repeat_alerted_keys)),
