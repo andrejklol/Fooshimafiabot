@@ -19,7 +19,11 @@ from services.vrchat_client import (
 from .permissions import check_level, LEVEL_CONSIGLIERE
 
 
-class ConsigliereCommands(commands.Cog):
+class ConsigliereCommands(
+    commands.GroupCog,
+    group_name="consigliere",
+    group_description="Consigliere commands",
+):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -69,11 +73,13 @@ class ConsigliereCommands(commands.Cog):
     # REFRESH VRC MEMBERS
     # ============================================================
 
-    @commands.hybrid_command(
+    @app_commands.command(
         name="refreshvrcmembers",
         description="Refresh cached VRChat group members and roles",
     )
-    async def refreshvrcmembers(self, ctx: commands.Context) -> None:
+    async def refreshvrcmembers(self, interaction: discord.Interaction) -> None:
+        ctx = await commands.Context.from_interaction(interaction)
+
         if not await check_level(ctx, LEVEL_CONSIGLIERE):
             await respond(
                 ctx,
@@ -86,8 +92,8 @@ class ConsigliereCommands(commands.Cog):
             return
 
         try:
-            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
-                await ctx.interaction.response.defer(ephemeral=True)
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
 
             member_count, role_count, staff_count, synced_count = (
                 await self._run_refresh_vrc_members()
@@ -102,28 +108,35 @@ class ConsigliereCommands(commands.Cog):
                 ]
             )
 
-            await respond(
-                ctx,
+            await interaction.followup.send(
                 embed=success_embed("VRChat Members Refreshed", description),
                 ephemeral=True,
             )
 
         except Exception as exc:
-            await respond(
-                ctx,
-                embed=warning_embed("Refresh Failed", str(exc)),
-                ephemeral=True,
-            )
+            if interaction.response.is_done():
+                await interaction.followup.send(
+                    embed=warning_embed("Refresh Failed", str(exc)),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=warning_embed("Refresh Failed", str(exc)),
+                    ephemeral=True,
+                )
 
     # ============================================================
     # STAFF STATUS
     # ============================================================
 
-    @commands.hybrid_command(
+    @app_commands.command(
         name="staffstatus",
         description="Show VRChat online status of staff",
     )
-    async def staffstatus(self, ctx: commands.Context) -> None:
+    async def staffstatus(self, interaction: discord.Interaction) -> None:
+        ctx = await commands.Context.from_interaction(interaction)
+
         if not await check_level(ctx, LEVEL_CONSIGLIERE):
             await respond(
                 ctx,
@@ -149,8 +162,8 @@ class ConsigliereCommands(commands.Cog):
             return
 
         try:
-            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
-                await ctx.interaction.response.defer(ephemeral=True)
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
 
             lines: list[str] = []
 
@@ -176,8 +189,7 @@ class ConsigliereCommands(commands.Cog):
 
             chunks = self._chunk("\n".join(lines))
 
-            await respond(
-                ctx,
+            await interaction.followup.send(
                 embed=info_embed(
                     "Staff VRChat Status",
                     "Shows who the bot thinks is online.",
@@ -185,32 +197,41 @@ class ConsigliereCommands(commands.Cog):
                 ephemeral=True,
             )
 
-            if getattr(ctx, "interaction", None):
-                for chunk in chunks:
-                    await ctx.interaction.followup.send(
-                        f"```\n{chunk}\n```",
-                        ephemeral=True,
-                    )
-            else:
-                for chunk in chunks:
-                    await ctx.send(f"```\n{chunk}\n```")
+            for chunk in chunks:
+                await interaction.followup.send(
+                    f"```\n{chunk}\n```",
+                    ephemeral=True,
+                )
 
         except Exception as exc:
-            await respond(
-                ctx,
-                embed=warning_embed("Staff Status Failed", str(exc)),
-                ephemeral=True,
-            )
+            if interaction.response.is_done():
+                await interaction.followup.send(
+                    embed=warning_embed("Staff Status Failed", str(exc)),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=warning_embed("Staff Status Failed", str(exc)),
+                    ephemeral=True,
+                )
 
     # ============================================================
     # ARCHIVED STAFF RECORD
     # ============================================================
 
-    @commands.hybrid_command(
+    @app_commands.command(
         name="staffrecordarchived",
         description="View archived staff record",
     )
-    async def staffrecordarchived(self, ctx: commands.Context, staff: str) -> None:
+    @app_commands.describe(staff="Archived leaderboard staff ID")
+    async def staffrecordarchived(
+        self,
+        interaction: discord.Interaction,
+        staff: str,
+    ) -> None:
+        ctx = await commands.Context.from_interaction(interaction)
+
         if not await check_level(ctx, LEVEL_CONSIGLIERE):
             await respond(
                 ctx,
@@ -249,7 +270,7 @@ class ConsigliereCommands(commands.Cog):
     # TEST HIGH STAFF ALERT
     # ============================================================
 
-    @commands.hybrid_command(
+    @app_commands.command(
         name="testhighstaff",
         description="Test high staff / suspicious mod alerts",
     )
@@ -263,9 +284,11 @@ class ConsigliereCommands(commands.Cog):
     )
     async def testhighstaff(
         self,
-        ctx: commands.Context,
-        action: str,
+        interaction: discord.Interaction,
+        action: app_commands.Choice[str],
     ) -> None:
+        ctx = await commands.Context.from_interaction(interaction)
+
         if not await check_level(ctx, LEVEL_CONSIGLIERE):
             await respond(
                 ctx,
@@ -277,39 +300,47 @@ class ConsigliereCommands(commands.Cog):
             )
             return
 
-        action = str(action or "").lower().strip()
+        action_value = str(action.value or "").lower().strip()
 
         try:
-            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
-                await ctx.interaction.response.defer(ephemeral=True)
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
 
             for i in range(12):
                 await track_high_staff_action(
-                    moderator_name=ctx.author.display_name,
-                    action_type=action,
-                    discord_user_id=str(ctx.author.id),
+                    moderator_name=interaction.user.display_name,
+                    action_type=action_value,
+                    discord_user_id=str(interaction.user.id),
                     target_id=f"test_user_{i}",
                     target_name=f"TestUser{i}",
                 )
 
-            await respond(
-                ctx,
+            await interaction.followup.send(
                 embed=success_embed(
                     "Test Triggered",
-                    f"Simulated **{action}** spike.\nCheck alert channel.",
+                    f"Simulated **{action_value}** spike.\nCheck alert channel.",
                 ),
                 ephemeral=True,
             )
 
         except Exception as exc:
-            await respond(
-                ctx,
-                embed=warning_embed(
-                    "Test Failed",
-                    str(exc),
-                ),
-                ephemeral=True,
-            )
+            if interaction.response.is_done():
+                await interaction.followup.send(
+                    embed=warning_embed(
+                        "Test Failed",
+                        str(exc),
+                    ),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=warning_embed(
+                        "Test Failed",
+                        str(exc),
+                    ),
+                    ephemeral=True,
+                )
 
 
 async def setup(bot: commands.Bot) -> None:
