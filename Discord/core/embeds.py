@@ -66,6 +66,41 @@ def leaderboard_embed(title: str, description: str | None = None) -> discord.Emb
 
 
 # ============================================================
+# HIGH STAFF ALERT EMBED
+# ============================================================
+
+def high_staff_alert_embed(
+        moderator_name: str,
+        action_type: str,
+        count: int,
+        window_minutes: int,
+        threshold: int,
+        vrchat_user_id: str | None = None,
+) -> discord.Embed:
+    pretty_action = action_type.upper()
+
+    embed = base_embed(
+        f"🚨 High Staff Activity Detected",
+        color=0xFF4D4D,
+    )
+
+    embed.add_field(name="Moderator", value=moderator_name, inline=True)
+    embed.add_field(name="Action", value=pretty_action, inline=True)
+    embed.add_field(name="Count", value=str(count), inline=True)
+    embed.add_field(name="Window", value=f"{window_minutes} minutes", inline=True)
+    embed.add_field(name="Threshold", value=str(threshold), inline=True)
+
+    if vrchat_user_id:
+        embed.add_field(name="VRChat User ID", value=vrchat_user_id, inline=False)
+
+    embed.description = (
+        f"Detected **{count} {action_type}(s)** within **{window_minutes} minutes**."
+    )
+
+    return embed
+
+
+# ============================================================
 # HELPERS
 # ============================================================
 
