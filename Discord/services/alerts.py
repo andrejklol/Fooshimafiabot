@@ -13,7 +13,6 @@ from core.config import (
 )
 from core.embeds import (
     ban_action_embed,
-    high_staff_alert_embed,
     kick_action_embed,
     warn_action_embed,
     warning_embed,
@@ -279,6 +278,87 @@ def build_repeat_alert_embed(
 
 
 # ============================================================
+# HIGH STAFF ALERT HELPERS
+# ============================================================
+
+ACTION_DISPLAY_MAP = {
+    "warn": "Warning Spike",
+    "kick": "Kick Spike",
+    "ban": "Ban Spike",
+    "unique_targets": "Unique Targets Spike",
+}
+
+ACTION_LABEL_MAP = {
+    "warn": "WARN",
+    "kick": "KICK",
+    "ban": "BAN",
+    "unique_targets": "UNIQUE_TARGETS",
+}
+
+
+def _build_high_staff_alert_embed(
+    moderator_name: str,
+    action_type: str,
+    count: int,
+    window_minutes: int,
+    threshold: int,
+    discord_user_id: str | None = None,
+) -> discord.Embed:
+    clean_action = str(action_type or "").strip().lower()
+    discord_user_id = str(discord_user_id or "").strip() or None
+
+    embed = warning_embed("High Staff Activity Detected")
+    embed.timestamp = utc_now()
+
+    display_action = ACTION_DISPLAY_MAP.get(
+        clean_action,
+        clean_action.replace("_", " ").title() if clean_action else "Unknown",
+    )
+    action_label = ACTION_LABEL_MAP.get(
+        clean_action,
+        clean_action.upper() if clean_action else "UNKNOWN",
+    )
+
+    if clean_action == "unique_targets":
+        description = (
+            f"Detected **{count} unique moderation target(s)** "
+            f"within **{window_minutes} minutes**."
+        )
+    elif clean_action.startswith("repeat_target:"):
+        target_label = clean_action.split(":", 1)[1].strip() or "Unknown Target"
+        display_action = "Repeat Target Spike"
+        action_label = "REPEAT_TARGET"
+        description = (
+            f"Detected **{count} action(s)** against **{target_label}** "
+            f"within **{window_minutes} minutes**."
+        )
+    else:
+        description = (
+            f"Detected **{count} {clean_action}(s)** "
+            f"within **{window_minutes} minutes**."
+        )
+
+    embed.description = description
+
+    embed.add_field(name="Moderator", value=moderator_name or "Unknown", inline=True)
+    embed.add_field(name="Action", value=action_label, inline=True)
+    embed.add_field(name="Count", value=str(count), inline=True)
+
+    embed.add_field(name="Window", value=f"{window_minutes} minutes", inline=True)
+    embed.add_field(name="Threshold", value=str(threshold), inline=True)
+    embed.add_field(name="Alert Type", value=display_action, inline=True)
+
+    if discord_user_id:
+        embed.add_field(
+            name="Discord User ID",
+            value=discord_user_id,
+            inline=False,
+        )
+
+    return embed
+
+
+# ============================================================
 # REPEAT ALERT VIEW
 # ============================================================
 
@@ -497,7 +577,7 @@ async def send_high_staff_alert(
     count: int,
     window_minutes: int,
     threshold: int,
-    vrchat_user_id: str | None = None,
+    discord_user_id: str | None = None,
 ) -> None:
     if not bot:
         return
@@ -518,13 +598,13 @@ async def send_high_staff_alert(
             )
             return
 
-        embed = high_staff_alert_embed(
+        embed = _build_high_staff_alert_embed(
             moderator_name=moderator_name,
             action_type=action_type,
             count=count,
             window_minutes=window_minutes,
             threshold=threshold,
-            vrchat_user_id=vrchat_user_id,
+            discord_user_id=discord_user_id,
         )
 
         await channel.send(embed=embed)
