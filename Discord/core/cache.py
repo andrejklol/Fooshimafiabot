@@ -31,6 +31,13 @@ class AppState:
         self.leaderboard_lock = asyncio.Lock()
         self.leaderboard_dirty = False
 
+        # NEW
+        # ============================================================
+        # ARCHIVE GRACE PERIOD TRACKING
+        # staff_id -> {"missing_since": iso_timestamp}
+        # ============================================================
+        self.archive_pending = {}
+
         # ============================================================
         # OVERALL LEADERBOARD COUNTS
         # ============================================================
