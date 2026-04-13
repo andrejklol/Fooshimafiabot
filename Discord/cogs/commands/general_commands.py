@@ -1,23 +1,22 @@
-import discord from discord.ext import commands from discord import
-app_commands
+import discord
+from discord.ext import commands
+from discord import app_commands
 
-from core.embeds import leaderboard_embed, warning_embed from core.utils
-import respond
+from core.embeds import leaderboard_embed, warning_embed
+from core.utils import respond
 
-from services.leaderboard.storage import leaderboard_data from
-services.leaderboard.scoring import build_score_footer
+from services.leaderboard.storage import leaderboard_data
+from services.leaderboard.scoring import build_score_footer
 
-_VALID_SCOPES = [“overall”, “monthly”]
+
+_VALID_SCOPES = ["overall", "monthly"]
+
 
 class GeneralCommands(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-
-    # ============================================================
-    # LEADERBOARD
-    # ============================================================
 
     def _get_scope_data(self, scope):
 
@@ -71,7 +70,6 @@ class GeneralCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
 
 
@@ -104,6 +102,6 @@ class GeneralCommands(commands.Cog):
 
         await respond(ctx, embed=embed)
 
-async def setup(bot):
 
+async def setup(bot):
     await bot.add_cog(GeneralCommands(bot))
