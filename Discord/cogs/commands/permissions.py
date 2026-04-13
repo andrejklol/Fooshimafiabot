@@ -80,13 +80,19 @@ async def check_level(ctx: commands.Context, required_level: int) -> bool:
 
     allowed = actual_level >= required_level
 
+    guild_name = ctx.guild.name if ctx.guild else "DM"
+    channel_name = ctx.channel.name if ctx.guild else "DM"
+
     log.info(
-        "[PERM] user=%s | command=%s | required=%s | actual=%s | allowed=%s",
+        "[PERM] user=%s (%s) | command=%s | required=%s | actual=%s | allowed=%s | guild=%s | channel=%s",
         ctx.author,
+        ctx.author.id,
         ctx.command.name,
         required_name,
         actual_name,
         allowed,
+        guild_name,
+        channel_name,
     )
 
     return allowed
