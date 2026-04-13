@@ -70,6 +70,19 @@ class AppState:
         self.repeat_alerted_keys = set()
 
         # ============================================================
+        # HIGH STAFF ALERT TRACKING
+        # tracks rapid moderation spikes
+        # ============================================================
+
+        # staff_id -> list[timestamps of recent actions]
+        self.high_staff_recent_actions = defaultdict(list)
+
+        # prevents alert spam
+        # key = f"{staff_id}:{action_type}"
+        # value = last alert timestamp
+        self.high_staff_alert_cooldowns = {}
+
+        # ============================================================
         # PENDING INVITE TRACKING
         # target_id -> invite metadata
         # ============================================================
