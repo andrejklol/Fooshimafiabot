@@ -1,7 +1,10 @@
-import discord from discord.ext import commands from discord import
-app_commands
+import discord
+from discord.ext import commands
+from discord import app_commands
 
-from core.embeds import success_embed from core.utils import respond
+from core.embeds import success_embed
+from core.utils import respond
+
 
 class UnderbossCommands(commands.Cog):
 
@@ -10,18 +13,14 @@ class UnderbossCommands(commands.Cog):
 
 
     # ============================================================
-    # PLACEHOLDER
+    # TEST COMMAND
     # ============================================================
-
-    # Currently no underboss-only commands.
-    # File kept for future expansion.
-
 
     @commands.hybrid_command(
         name="underboss_ping",
         description="Test command for underboss rank",
     )
-    async def underboss_ping(self, ctx):
+    async def underboss_ping(self, ctx: commands.Context):
 
         await respond(
             ctx,
@@ -32,6 +31,6 @@ class UnderbossCommands(commands.Cog):
             ephemeral=True,
         )
 
-async def setup(bot):
 
+async def setup(bot: commands.Bot):
     await bot.add_cog(UnderbossCommands(bot))
