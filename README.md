@@ -186,7 +186,7 @@ Displays repeat offender statistics.
 
 ---
 
-## Admin Commands
+## Owner Commands
 
 `/synccommands`
 Force refresh slash commands.
