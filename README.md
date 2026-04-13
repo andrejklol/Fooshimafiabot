@@ -160,11 +160,11 @@ Commands are restricted based on staff level to ensure proper access control.
 
 | Rank | Permission Level | Description |
 |------|-----------------|-------------|
-| **Godfooshi** | Owner | Full access to all bot commands and configuration |
-| **Underboss** | Admin | Administrative commands and system management |
-| **Consigliere** | High Staff | Advanced moderation and oversight tools |
-| **Capo** | Moderator | Standard moderation commands |
-| **Soldier** | Staff | Basic staff commands and tracking access |
+| **Godfooshi** | Owner | Full access to all bot systems, configuration, and administrative commands |
+| **Underboss** | Co-Owner | High-level management permissions and system oversight |
+| **Consigliere** | High Staff | Elevated moderation tools and staff oversight commands |
+| **Capo** | Admin | Advanced moderation commands and management tools |
+| **Soldier** | Moderator | Standard moderation and tracking commands |
 | **Associate** | Member | No staff permissions |
 
 The bot automatically determines permission level based on staff roles synced from VRChat and Discord.
