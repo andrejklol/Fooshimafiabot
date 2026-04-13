@@ -2,8 +2,10 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
+import discord
+
 from core.cache import app_state
-from core.config import GUILD_ID, STAFF_ALERT_ORDER
+from core.config import ERROR_LOG_CHANNEL_ID, GUILD_ID, STAFF_ALERT_ORDER
 from services.vrchat_client import (
     get_all_vrc_staff_members,
     vrc_user_is_staff,
@@ -23,6 +25,7 @@ _MOD_ACTIONS = {"warn", "kick", "ban"}
 _SUPPORTED_ACTIONS = {"warn", "kick", "ban", "invite", "invite_accept"}
 
 ARCHIVE_GRACE_PERIOD = timedelta(hours=24)
+ARCHIVE_WARNING_AFTER = timedelta(hours=12)
 
 DISCORD_STAFF_ROLE_NAMES = {
     "godfooshi",
@@ -39,6 +42,36 @@ DISCORD_STAFF_ROLE_NAMES = {
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+async def _send_archive_log_message(bot, title: str, description: str) -> None:
+    if not bot:
+        return
+
+    try:
+        channel = None
+
+        if ERROR_LOG_CHANNEL_ID:
+            channel = bot.get_channel(ERROR_LOG_CHANNEL_ID)
+
+        if channel is None and GUILD_ID and hasattr(bot, "get_guild"):
+            guild = bot.get_guild(GUILD_ID)
+            if guild and ERROR_LOG_CHANNEL_ID:
+                channel = guild.get_channel(ERROR_LOG_CHANNEL_ID)
+
+        if channel is None:
+            return
+
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=discord.Color.orange(),
+            timestamp=datetime.now(timezone.utc),
+        )
+        await channel.send(embed=embed)
+
+    except Exception as exc:
+        log.warning("Failed to send archive log message: %r", exc)
 
 
 def _ensure_section(section: str) -> None:
@@ -217,14 +250,17 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
     if not hasattr(app_state, "archive_pending") or not isinstance(app_state.archive_pending, dict):
         app_state.archive_pending = {}
 
+    if not hasattr(app_state, "archive_warning_sent") or not isinstance(app_state.archive_warning_sent, dict):
+        app_state.archive_warning_sent = {}
+
     guild = bot.get_guild(GUILD_ID) if bot and hasattr(bot, "get_guild") else None
     vrc_to_discord = _build_vrc_to_discord_map()
 
     for staff_id in list(leaderboard_data["staff"].keys()):
-        # Still exists in the VRC staff list -> clear any pending timer.
+        # Still exists in the VRC staff list -> clear any pending timer / warning.
         if staff_id in current_staff_ids:
-            if staff_id in app_state.archive_pending:
-                del app_state.archive_pending[staff_id]
+            app_state.archive_pending.pop(staff_id, None)
+            app_state.archive_warning_sent.pop(staff_id, None)
             continue
 
         display_name = leaderboard_data["staff"].get(staff_id, {}).get("name", staff_id)
@@ -244,10 +280,10 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
                 if member and _member_has_discord_staff_role(member):
                     has_discord_role = True
 
-        # If Discord staff role is still present, do not archive and clear timer.
+        # If Discord staff role is still present, do not archive and clear timer / warning.
         if has_discord_role:
-            if staff_id in app_state.archive_pending:
-                del app_state.archive_pending[staff_id]
+            app_state.archive_pending.pop(staff_id, None)
+            app_state.archive_warning_sent.pop(staff_id, None)
 
             log.info(
                 "Skipping archive for %s (%s) because Discord staff role is still present",
@@ -279,19 +315,32 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
             app_state.archive_pending[staff_id] = {
                 "missing_since": now.isoformat(),
             }
+            app_state.archive_warning_sent.pop(staff_id, None)
             continue
 
         if missing_since.tzinfo is None:
             missing_since = missing_since.replace(tzinfo=timezone.utc)
 
+        elapsed = now - missing_since
+
+        # 12 hour warning, once.
+        if elapsed >= ARCHIVE_WARNING_AFTER and not app_state.archive_warning_sent.get(staff_id):
+            await _send_archive_log_message(
+                bot,
+                "⚠ Staff Pending Archive",
+                f"**{display_name}** has been missing both Discord and VRChat staff roles for 12 hours.\n"
+                f"They will be archived in 12 more hours if the roles are not restored.",
+            )
+            app_state.archive_warning_sent[staff_id] = True
+
         # Still inside the 24h grace period.
-        if now - missing_since < ARCHIVE_GRACE_PERIOD:
+        if elapsed < ARCHIVE_GRACE_PERIOD:
             continue
 
         entry = leaderboard_data["staff"].pop(staff_id, None)
         if not isinstance(entry, dict):
-            if staff_id in app_state.archive_pending:
-                del app_state.archive_pending[staff_id]
+            app_state.archive_pending.pop(staff_id, None)
+            app_state.archive_warning_sent.pop(staff_id, None)
             continue
 
         archived_entry = dict(entry)
@@ -300,8 +349,8 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
 
         leaderboard_data["archive"][staff_id] = archived_entry
 
-        if staff_id in app_state.archive_pending:
-            del app_state.archive_pending[staff_id]
+        app_state.archive_pending.pop(staff_id, None)
+        app_state.archive_warning_sent.pop(staff_id, None)
 
         changed = True
 
@@ -309,6 +358,12 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
             "Archived staff member after 24h grace period: %s (%s)",
             archived_entry.get("name", "Unknown"),
             staff_id,
+        )
+
+        await _send_archive_log_message(
+            bot,
+            "📦 Staff Archived",
+            f"**{archived_entry.get('name', 'Unknown')}** was archived after missing both Discord and VRChat staff roles for 24 hours.",
         )
 
     return changed
