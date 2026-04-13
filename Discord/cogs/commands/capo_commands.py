@@ -1,13 +1,13 @@
-import discord from discord import app_commands from discord.ext import
-commands
+import discord
+from discord import app_commands
+from discord.ext import commands
 
-from core.embeds import info_embed, success_embed, warning_embed from
-core.utils import respond, send_error_log from core.cache import
-app_state
+from core.embeds import info_embed, success_embed, warning_embed
+from core.utils import respond
+from core.cache import app_state
 
-from services.leaderboard.queries import get_top_staff from
-services.leaderboard.scoring import build_score_footer from
-services.leaderboard.storage import leaderboard_data
+from services.leaderboard.scoring import build_score_footer
+from services.leaderboard.storage import leaderboard_data
 
 LEVEL_CAPO = 2
 
