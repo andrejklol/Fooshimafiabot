@@ -285,9 +285,9 @@ class ConsigliereCommands(commands.Cog):
 
             for i in range(12):
                 await track_high_staff_action(
-                    moderator_name=ctx.author.display_name,
+                    ,
                     action_type=action,
-                    vrchat_user_id=str(ctx.author.id),
+                    discord_user_id=str(ctx.author.id),
                     target_id=f"test_user_{i}",
                     target_name=f"TestUser{i}",
                 )
