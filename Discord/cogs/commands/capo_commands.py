@@ -11,11 +11,7 @@ from services.leaderboard.storage import leaderboard_data
 from .permissions import check_level, LEVEL_CAPO
 
 
-class CapoCommands(
-    commands.GroupCog,
-    group_name="capo",
-    group_description="Capo commands",
-):
+class CapoCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -39,14 +35,12 @@ class CapoCommands(
     # CLEAR
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="clear",
         description="Delete recent messages",
     )
     @app_commands.describe(amount="Messages to delete (max 100)")
-    async def clear(self, interaction: discord.Interaction, amount: int) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
-
+    async def clear(self, ctx: commands.Context, amount: int) -> None:
         if not await check_level(ctx, LEVEL_CAPO):
             await respond(
                 ctx,
@@ -66,7 +60,7 @@ class CapoCommands(
             )
             return
 
-        if interaction.channel is None:
+        if ctx.channel is None:
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -80,22 +74,32 @@ class CapoCommands(
         amount = min(amount, 100)
 
         try:
-            if not interaction.response.is_done():
-                await interaction.response.defer(ephemeral=True)
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
 
-            deleted = await interaction.channel.purge(limit=amount)
+            deleted = await ctx.channel.purge(limit=amount)
 
-            await interaction.followup.send(
-                embed=success_embed(
-                    "Messages Deleted",
-                    f"Deleted {len(deleted)} messages.",
-                ),
-                ephemeral=True,
-            )
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=success_embed(
+                        "Messages Deleted",
+                        f"Deleted {len(deleted)} messages.",
+                    ),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=success_embed(
+                        "Messages Deleted",
+                        f"Deleted {len(deleted)} messages.",
+                    ),
+                    ephemeral=True,
+                )
 
         except Exception as exc:
-            if interaction.response.is_done():
-                await interaction.followup.send(
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
                     embed=warning_embed("Clear Failed", str(exc)),
                     ephemeral=True,
                 )
@@ -110,14 +114,12 @@ class CapoCommands(
     # STAFF RECORD
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="staffrecord",
         description="Check staff moderation stats",
     )
     @app_commands.describe(staff="Leaderboard staff ID")
-    async def staffrecord(self, interaction: discord.Interaction, staff: str) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
-
+    async def staffrecord(self, ctx: commands.Context, staff: str) -> None:
         if not await check_level(ctx, LEVEL_CAPO):
             await respond(
                 ctx,
@@ -147,13 +149,11 @@ class CapoCommands(
     # REPEAT STATS
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="repeatstats",
         description="Show repeat offender stats",
     )
-    async def repeatstats(self, interaction: discord.Interaction) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
-
+    async def repeatstats(self, ctx: commands.Context) -> None:
         if not await check_level(ctx, LEVEL_CAPO):
             await respond(
                 ctx,
