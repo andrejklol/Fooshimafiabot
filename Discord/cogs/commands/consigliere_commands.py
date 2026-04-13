@@ -1,303 +1,316 @@
-import logging
-from datetime import timedelta
+import discord
+from discord import app_commands
+from discord.ext import commands
 
 from core.cache import app_state
-from core.config import (
-    HIGH_STAFF_ALERT_COOLDOWN_MINUTES,
-    HIGH_STAFF_ALERT_ENABLED,
-    HIGH_STAFF_BAN_THRESHOLD,
-    HIGH_STAFF_KICK_THRESHOLD,
-    HIGH_STAFF_WARN_THRESHOLD,
-    HIGH_STAFF_WINDOW_MINUTES,
-    SUSPICIOUS_ALERT_COOLDOWN_MINUTES,
-    SUSPICIOUS_MOD_ENABLED,
-    SUSPICIOUS_REPEAT_TARGET_THRESHOLD,
-    SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES,
-    SUSPICIOUS_UNIQUE_TARGET_THRESHOLD,
-    SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES,
+from core.config import GUILD_ID, STAFF_ALERT_ORDER
+from core.embeds import info_embed, success_embed, warning_embed
+from core.utils import respond
+
+from services.high_staff import track_high_staff_action
+from services.leaderboard.processors import sync_all_vrc_staff_into_leaderboard
+from services.leaderboard.storage import leaderboard_data
+from services.vrchat_client import (
+    get_all_vrc_staff_members,
+    get_vrchat_user_status,
+    refresh_vrc_group_members,
 )
-from core.utils import utc_now
-from services.alerts import send_high_staff_alert
 
-log = logging.getLogger("high_staff")
+from .permissions import check_level, LEVEL_CONSIGLIERE
 
 
-# ============================================================
-# HELPERS
-# ============================================================
+class ConsigliereCommands(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
 
-def _get_threshold_for_action(action_type: str) -> int:
-    action_type = str(action_type or "").strip().lower()
+    # ============================================================
+    # HELPERS
+    # ============================================================
 
-    if action_type == "warn":
-        return HIGH_STAFF_WARN_THRESHOLD
+    def _chunk(self, text: str, limit: int = 1900) -> list[str]:
+        if len(text) <= limit:
+            return [text]
 
-    if action_type == "kick":
-        return HIGH_STAFF_KICK_THRESHOLD
+        parts: list[str] = []
+        current = ""
 
-    if action_type == "ban":
-        return HIGH_STAFF_BAN_THRESHOLD
+        for line in text.splitlines():
+            line_with_newline = f"{line}\n"
 
-    return 0
+            if len(current) + len(line_with_newline) > limit:
+                if current:
+                    parts.append(current.rstrip())
+                current = line_with_newline
+            else:
+                current += line_with_newline
 
+        if current:
+            parts.append(current.rstrip())
 
-def _prune_old_actions(action_log: list, window_minutes: int) -> None:
-    cutoff = utc_now() - timedelta(minutes=window_minutes)
+        return parts
 
-    while action_log:
-        first = action_log[0]
-        first_ts = first[0] if isinstance(first, tuple) else first
+    def _get_archive(self) -> dict:
+        data = leaderboard_data.get("archive", {})
+        return data if isinstance(data, dict) else {}
 
-        if first_ts < cutoff:
-            action_log.pop(0)
-        else:
-            break
+    async def _run_refresh_vrc_members(self) -> tuple[int, int, int, int]:
+        await refresh_vrc_group_members(force=True)
+        vrc_staff_members = await get_all_vrc_staff_members(force_refresh=False)
+        synced_count = await sync_all_vrc_staff_into_leaderboard(self.bot)
 
-
-def _get_or_create_recent_actions() -> dict:
-    recent_actions = getattr(app_state, "high_staff_recent_actions", None)
-    if recent_actions is None:
-        app_state.high_staff_recent_actions = {}
-        recent_actions = app_state.high_staff_recent_actions
-    return recent_actions
-
-
-def _get_or_create_cooldowns() -> dict:
-    cooldowns = getattr(app_state, "high_staff_alert_cooldowns", None)
-    if cooldowns is None:
-        app_state.high_staff_alert_cooldowns = {}
-        cooldowns = app_state.high_staff_alert_cooldowns
-    return cooldowns
-
-
-def _cooldown_active(cooldowns: dict, key: str, cooldown_minutes: int) -> bool:
-    now = utc_now()
-    last_alert_time = cooldowns.get(key)
-
-    if last_alert_time is None:
-        return False
-
-    cutoff = now - timedelta(minutes=cooldown_minutes)
-    return last_alert_time > cutoff
-
-
-def _set_cooldown(cooldowns: dict, key: str) -> None:
-    cooldowns[key] = utc_now()
-
-
-# ============================================================
-# SUSPICIOUS MOD HELPERS
-# ============================================================
-
-def _track_unique_targets(
-    moderator_actions: dict,
-    target_id: str,
-) -> int:
-    target_log = moderator_actions.setdefault("_all_targets", [])
-    target_log.append((utc_now(), target_id))
-    _prune_old_actions(target_log, SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES)
-
-    unique_targets = {
-        logged_target_id
-        for _ts, logged_target_id in target_log
-        if str(logged_target_id).strip()
-    }
-    return len(unique_targets)
-
-
-def _track_repeat_target(
-    moderator_actions: dict,
-    target_id: str,
-) -> int:
-    repeat_targets = moderator_actions.setdefault("_repeat_targets", {})
-    target_action_log = repeat_targets.setdefault(target_id, [])
-
-    target_action_log.append(utc_now())
-    _prune_old_actions(target_action_log, SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES)
-
-    return len(target_action_log)
-
-
-async def _maybe_send_suspicious_unique_target_alert(
-    *,
-    moderator_name: str,
-    vrchat_user_id: str | None,
-    unique_target_count: int,
-    cooldowns: dict,
-) -> None:
-    if unique_target_count < SUSPICIOUS_UNIQUE_TARGET_THRESHOLD:
-        return
-
-    cooldown_key = f"{moderator_name}:suspicious_unique_targets"
-    if _cooldown_active(cooldowns, cooldown_key, SUSPICIOUS_ALERT_COOLDOWN_MINUTES):
-        log.debug(
-            "suspicious unique-target alert suppressed cooldown | mod=%s count=%s",
-            moderator_name,
-            unique_target_count,
+        return (
+            len(app_state.vrc_group_member_roles),
+            len(app_state.vrc_group_role_map),
+            len(vrc_staff_members),
+            synced_count,
         )
-        return
 
-    _set_cooldown(cooldowns, cooldown_key)
+    # ============================================================
+    # REFRESH VRC MEMBERS
+    # ============================================================
 
-    await send_high_staff_alert(
-        bot=app_state.bot,
-        moderator_name=moderator_name,
-        action_type="suspicious_unique_targets",
-        count=unique_target_count,
-        window_minutes=SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES,
-        threshold=SUSPICIOUS_UNIQUE_TARGET_THRESHOLD,
-        vrchat_user_id=vrchat_user_id,
+    @commands.hybrid_command(
+        name="refreshvrcmembers",
+        description="Refresh cached VRChat group members and roles",
     )
-
-    log.warning(
-        "suspicious unique-target activity | mod=%s count=%s window=%sm threshold=%s",
-        moderator_name,
-        unique_target_count,
-        SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES,
-        SUSPICIOUS_UNIQUE_TARGET_THRESHOLD,
-    )
-
-
-async def _maybe_send_suspicious_repeat_target_alert(
-    *,
-    moderator_name: str,
-    vrchat_user_id: str | None,
-    target_id: str,
-    repeat_target_count: int,
-    cooldowns: dict,
-) -> None:
-    if repeat_target_count < SUSPICIOUS_REPEAT_TARGET_THRESHOLD:
-        return
-
-    cooldown_key = f"{moderator_name}:suspicious_repeat_target:{target_id}"
-    if _cooldown_active(cooldowns, cooldown_key, SUSPICIOUS_ALERT_COOLDOWN_MINUTES):
-        log.debug(
-            "suspicious repeat-target alert suppressed cooldown | mod=%s target=%s count=%s",
-            moderator_name,
-            target_id,
-            repeat_target_count,
-        )
-        return
-
-    _set_cooldown(cooldowns, cooldown_key)
-
-    await send_high_staff_alert(
-        bot=app_state.bot,
-        moderator_name=moderator_name,
-        action_type=f"suspicious_repeat_target ({target_id})",
-        count=repeat_target_count,
-        window_minutes=SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES,
-        threshold=SUSPICIOUS_REPEAT_TARGET_THRESHOLD,
-        vrchat_user_id=vrchat_user_id,
-    )
-
-    log.warning(
-        "suspicious repeat-target activity | mod=%s target=%s count=%s window=%sm threshold=%s",
-        moderator_name,
-        target_id,
-        repeat_target_count,
-        SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES,
-        SUSPICIOUS_REPEAT_TARGET_THRESHOLD,
-    )
-
-
-# ============================================================
-# TRACK ACTION
-# ============================================================
-
-async def track_high_staff_action(
-    moderator_name: str,
-    action_type: str,
-    vrchat_user_id: str | None = None,
-    target_id: str | None = None,
-    target_name: str | None = None,
-) -> None:
-    if not HIGH_STAFF_ALERT_ENABLED:
-        return
-
-    moderator_name = str(moderator_name or "").strip() or "Unknown"
-    action_type = str(action_type or "").strip().lower()
-    target_id = str(target_id or "").strip() or None
-    target_name = str(target_name or "").strip() or None
-
-    if action_type not in {"warn", "kick", "ban"}:
-        return
-
-    threshold = _get_threshold_for_action(action_type)
-    window_minutes = HIGH_STAFF_WINDOW_MINUTES
-
-    if threshold <= 0 or window_minutes <= 0:
-        return
-
-    now = utc_now()
-
-    recent_actions = _get_or_create_recent_actions()
-    cooldowns = _get_or_create_cooldowns()
-
-    moderator_actions = recent_actions.setdefault(moderator_name, {})
-    action_log = moderator_actions.setdefault(action_type, [])
-
-    action_log.append(now)
-    _prune_old_actions(action_log, window_minutes)
-
-    count = len(action_log)
-
-    if count >= threshold:
-        cooldown_key = f"{moderator_name}:{action_type}"
-
-        if _cooldown_active(
-            cooldowns,
-            cooldown_key,
-            HIGH_STAFF_ALERT_COOLDOWN_MINUTES,
-        ):
-            log.debug(
-                "high staff alert suppressed cooldown | mod=%s action=%s count=%s",
-                moderator_name,
-                action_type,
-                count,
+    async def refreshvrcmembers(self, ctx: commands.Context) -> None:
+        if not await check_level(ctx, LEVEL_CONSIGLIERE):
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Permission Denied",
+                    "You do not have permission to use this command.",
+                ),
+                ephemeral=True,
             )
-        else:
-            _set_cooldown(cooldowns, cooldown_key)
+            return
 
-            await send_high_staff_alert(
-                bot=app_state.bot,
-                moderator_name=moderator_name,
-                action_type=action_type,
-                count=count,
-                window_minutes=window_minutes,
-                threshold=threshold,
-                vrchat_user_id=vrchat_user_id,
+        try:
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
+
+            member_count, role_count, staff_count, synced_count = (
+                await self._run_refresh_vrc_members()
             )
 
-            log.warning(
-                "high staff threshold hit | mod=%s action=%s count=%s window=%sm threshold=%s",
-                moderator_name,
-                action_type,
-                count,
-                window_minutes,
-                threshold,
+            description = "\n".join(
+                [
+                    f"Members cached: `{member_count}`",
+                    f"Roles cached: `{role_count}`",
+                    f"Detected VRC staff members: `{staff_count}`",
+                    f"Staff synced to leaderboard: `{synced_count}`",
+                ]
             )
 
-    if not SUSPICIOUS_MOD_ENABLED:
-        return
+            await respond(
+                ctx,
+                embed=success_embed("VRChat Members Refreshed", description),
+                ephemeral=True,
+            )
 
-    if not target_id:
-        return
+        except Exception as exc:
+            await respond(
+                ctx,
+                embed=warning_embed("Refresh Failed", str(exc)),
+                ephemeral=True,
+            )
 
-    unique_target_count = _track_unique_targets(moderator_actions, target_id)
-    repeat_target_count = _track_repeat_target(moderator_actions, target_id)
+    # ============================================================
+    # STAFF STATUS
+    # ============================================================
 
-    await _maybe_send_suspicious_unique_target_alert(
-        moderator_name=moderator_name,
-        vrchat_user_id=vrchat_user_id,
-        unique_target_count=unique_target_count,
-        cooldowns=cooldowns,
+    @commands.hybrid_command(
+        name="staffstatus",
+        description="Show VRChat online status of staff",
     )
+    async def staffstatus(self, ctx: commands.Context) -> None:
+        if not await check_level(ctx, LEVEL_CONSIGLIERE):
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Permission Denied",
+                    "You do not have permission to use this command.",
+                ),
+                ephemeral=True,
+            )
+            return
 
-    await _maybe_send_suspicious_repeat_target_alert(
-        moderator_name=moderator_name,
-        vrchat_user_id=vrchat_user_id,
-        target_id=target_name or target_id,
-        repeat_target_count=repeat_target_count,
-        cooldowns=cooldowns,
+        guild = self.bot.get_guild(GUILD_ID)
+
+        if not guild:
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Guild Missing",
+                    "Bot could not find guild.",
+                ),
+                ephemeral=True,
+            )
+            return
+
+        try:
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
+
+            lines: list[str] = []
+
+            for action, groups in STAFF_ALERT_ORDER.items():
+                lines.append(f"## {action}")
+
+                for rank_name, members in groups:
+                    lines.append(f"**{rank_name}**")
+
+                    for entry in members:
+                        member = guild.get_member(entry["discord_id"])
+
+                        online, _, status = await get_vrchat_user_status(
+                            vrchat_username=entry.get("vrchat_username"),
+                            vrchat_user_id=entry.get("vrchat_user_id"),
+                        )
+
+                        name = member.display_name if member else "Unknown"
+
+                        lines.append(
+                            f"- {name} | {status} | {'ONLINE' if online else 'OFFLINE'}"
+                        )
+
+            chunks = self._chunk("\n".join(lines))
+
+            await respond(
+                ctx,
+                embed=info_embed(
+                    "Staff VRChat Status",
+                    "Shows who the bot thinks is online.",
+                ),
+                ephemeral=True,
+            )
+
+            if getattr(ctx, "interaction", None):
+                for chunk in chunks:
+                    await ctx.interaction.followup.send(
+                        f"```\n{chunk}\n```",
+                        ephemeral=True,
+                    )
+            else:
+                for chunk in chunks:
+                    await ctx.send(f"```\n{chunk}\n```")
+
+        except Exception as exc:
+            await respond(
+                ctx,
+                embed=warning_embed("Staff Status Failed", str(exc)),
+                ephemeral=True,
+            )
+
+    # ============================================================
+    # ARCHIVED STAFF RECORD
+    # ============================================================
+
+    @commands.hybrid_command(
+        name="staffrecordarchived",
+        description="View archived staff record",
     )
+    async def staffrecordarchived(self, ctx: commands.Context, staff: str) -> None:
+        if not await check_level(ctx, LEVEL_CONSIGLIERE):
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Permission Denied",
+                    "You do not have permission to use this command.",
+                ),
+                ephemeral=True,
+            )
+            return
+
+        archive = self._get_archive()
+        record = archive.get(staff)
+
+        if not record:
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Not Found",
+                    "No archived record found.",
+                ),
+                ephemeral=True,
+            )
+            return
+
+        embed = info_embed(f"Archived Record — {staff}")
+        embed.add_field(name="Warn", value=str(record.get("warn", 0)))
+        embed.add_field(name="Kick", value=str(record.get("kick", 0)))
+        embed.add_field(name="Ban", value=str(record.get("ban", 0)))
+        embed.add_field(name="Points", value=str(record.get("points", 0)))
+        embed.add_field(name="Archived", value=str(record.get("archived_at")))
+
+        await respond(ctx, embed=embed, ephemeral=True)
+
+    # ============================================================
+    # TEST HIGH STAFF ALERT
+    # ============================================================
+
+    @commands.hybrid_command(
+        name="testhighstaff",
+        description="Test high staff / suspicious mod alerts",
+    )
+    @app_commands.describe(action="Select which action to simulate")
+    @app_commands.choices(
+        action=[
+            app_commands.Choice(name="Warn", value="warn"),
+            app_commands.Choice(name="Kick", value="kick"),
+            app_commands.Choice(name="Ban", value="ban"),
+        ]
+    )
+    async def testhighstaff(
+        self,
+        ctx: commands.Context,
+        action: str,
+    ) -> None:
+        if not await check_level(ctx, LEVEL_CONSIGLIERE):
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Permission Denied",
+                    "You do not have permission to use this command.",
+                ),
+                ephemeral=True,
+            )
+            return
+
+        action = str(action or "").lower().strip()
+
+        try:
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
+
+            for i in range(12):
+                await track_high_staff_action(
+                    moderator_name=ctx.author.display_name,
+                    action_type=action,
+                    vrchat_user_id=str(ctx.author.id),
+                    target_id=f"test_user_{i}",
+                    target_name=f"TestUser{i}",
+                )
+
+            await respond(
+                ctx,
+                embed=success_embed(
+                    "Test Triggered",
+                    f"Simulated **{action}** spike.\nCheck alert channel.",
+                ),
+                ephemeral=True,
+            )
+
+        except Exception as exc:
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Test Failed",
+                    str(exc),
+                ),
+                ephemeral=True,
+            )
+
+
+async def setup(bot: commands.Bot) -> None:
+    await bot.add_cog(ConsigliereCommands(bot))
