@@ -1,4 +1,4 @@
-from .alerts import send_repeat_alert
+from services.alerts import send_repeat_alert
 
 from .tracking import (
     add_warn,
