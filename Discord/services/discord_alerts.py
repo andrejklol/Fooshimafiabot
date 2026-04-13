@@ -5,7 +5,7 @@ import discord
 
 from core.config import ALERT_CHANNEL_ID
 
-log = logging.getLogger("alerts")
+log = logging.getLogger("discord_alerts")
 
 
 async def send_alert(
@@ -13,16 +13,22 @@ async def send_alert(
     title: str,
     description: str,
     level: str = "info",
-):
+) -> None:
 
     if not bot:
         return
 
     try:
-
         channel = bot.get_channel(ALERT_CHANNEL_ID)
 
-        if not channel:
+        if channel is None:
+            try:
+                channel = await bot.fetch_channel(ALERT_CHANNEL_ID)
+            except Exception:
+                channel = None
+
+        if channel is None:
+            log.warning("Alert channel not found: %s", ALERT_CHANNEL_ID)
             return
 
         colors = {
@@ -41,5 +47,5 @@ async def send_alert(
 
         await channel.send(embed=embed)
 
-    except Exception as e:
-        log.warning("Failed to send alert: %s", e)
+    except Exception as exc:
+        log.warning("Failed to send alert: %r", exc)
