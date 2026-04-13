@@ -44,10 +44,17 @@ async def perform_command_sync(bot: commands.Bot, clear_guild: bool = False) -> 
     return f"Guild synced {len(synced)} commands."
 
 
-class OwnerCommands(commands.Cog):
+# ============================================================
+# OWNER COMMANDS
+# ============================================================
 
+class OwnerCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    # ============================================================
+    # RESET ALL VRCHAT DATA
+    # ============================================================
 
     @commands.hybrid_command(
         name="resetvrcdata",
@@ -65,6 +72,10 @@ class OwnerCommands(commands.Cog):
             ),
             ephemeral=True,
         )
+
+    # ============================================================
+    # LOAD VRC HISTORY
+    # ============================================================
 
     @commands.hybrid_command(
         name="loadvrchistory",
@@ -107,30 +118,49 @@ class OwnerCommands(commands.Cog):
             return
 
         try:
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
+
             result = await load_full_history(
                 limit=amount,
                 rebuild=rebuild,
                 monthly_only=monthly_only,
             )
 
-            await respond(
-                ctx,
-                embed=success_embed(
-                    "History Load Complete",
-                    f"Loaded history result: `{result}`",
-                ),
-                ephemeral=True,
-            )
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=success_embed(
+                        "History Load Complete",
+                        f"Loaded history result: `{result}`",
+                    ),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=success_embed(
+                        "History Load Complete",
+                        f"Loaded history result: `{result}`",
+                    ),
+                    ephemeral=True,
+                )
 
         except Exception as exc:
-            await respond(
-                ctx,
-                embed=warning_embed(
-                    "Load History Failed",
-                    str(exc),
-                ),
-                ephemeral=True,
-            )
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=warning_embed("Load History Failed", str(exc)),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=warning_embed("Load History Failed", str(exc)),
+                    ephemeral=True,
+                )
+
+    # ============================================================
+    # SYNC COMMANDS
+    # ============================================================
 
     @commands.hybrid_command(
         name="synccommands",
@@ -143,20 +173,39 @@ class OwnerCommands(commands.Cog):
         clear_guild: bool = False,
     ) -> None:
         try:
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
+
             result = await perform_command_sync(self.bot, clear_guild=clear_guild)
 
-            await respond(
-                ctx,
-                embed=success_embed("Commands Synced", result),
-                ephemeral=True,
-            )
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=success_embed("Commands Synced", result),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=success_embed("Commands Synced", result),
+                    ephemeral=True,
+                )
 
         except Exception as exc:
-            await respond(
-                ctx,
-                embed=warning_embed("Sync Failed", str(exc)),
-                ephemeral=True,
-            )
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=warning_embed("Sync Failed", str(exc)),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=warning_embed("Sync Failed", str(exc)),
+                    ephemeral=True,
+                )
+
+    # ============================================================
+    # SIMULATE REPEAT ALERT
+    # ============================================================
 
     @commands.hybrid_command(
         name="simulaterepeatalert",
@@ -205,6 +254,10 @@ class OwnerCommands(commands.Cog):
                 ephemeral=True,
             )
 
+    # ============================================================
+    # RESET MONTHLY LEADERBOARD
+    # ============================================================
+
     @commands.hybrid_command(
         name="reset_monthly_leaderboard",
         description="Reset monthly leaderboard only",
@@ -229,6 +282,10 @@ class OwnerCommands(commands.Cog):
                 embed=warning_embed("Monthly Reset Failed", str(exc)),
                 ephemeral=True,
             )
+
+    # ============================================================
+    # TEST ERROR
+    # ============================================================
 
     @commands.hybrid_command(
         name="testerror",
@@ -257,6 +314,10 @@ class OwnerCommands(commands.Cog):
             ephemeral=True,
         )
 
+
+# ============================================================
+# SETUP
+# ============================================================
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(OwnerCommands(bot))
