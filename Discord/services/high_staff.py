@@ -1,49 +1,45 @@
 import logging
-from collections import defaultdict, deque
 from datetime import timedelta
 
 from core.cache import app_state
+from core.config import (
+    HIGH_STAFF_ALERT_COOLDOWN_MINUTES,
+    HIGH_STAFF_ALERT_ENABLED,
+    HIGH_STAFF_BAN_THRESHOLD,
+    HIGH_STAFF_KICK_THRESHOLD,
+    HIGH_STAFF_WARN_THRESHOLD,
+    HIGH_STAFF_WINDOW_MINUTES,
+)
 from core.utils import utc_now
 from services.alerts import send_high_staff_alert
-
 
 log = logging.getLogger("high_staff")
 
 
 # ============================================================
-# CONFIG
+# HELPERS
 # ============================================================
 
-HIGH_STAFF_THRESHOLDS = {
-    "warn": {
-        "threshold": 10,
-        "window_minutes": 10,
-    },
-    "kick": {
-        "threshold": 5,
-        "window_minutes": 10,
-    },
-    "ban": {
-        "threshold": 3,
-        "window_minutes": 10,
-    },
-}
+def _get_threshold_for_action(action_type: str) -> int:
+    action_type = str(action_type or "").strip().lower()
+
+    if action_type == "warn":
+        return HIGH_STAFF_WARN_THRESHOLD
+
+    if action_type == "kick":
+        return HIGH_STAFF_KICK_THRESHOLD
+
+    if action_type == "ban":
+        return HIGH_STAFF_BAN_THRESHOLD
+
+    return 0
 
 
-ALERT_COOLDOWN_MINUTES = 15
+def _prune_old_actions(action_log: list, window_minutes: int) -> None:
+    cutoff = utc_now() - timedelta(minutes=window_minutes)
 
-
-# ============================================================
-# MEMORY STORAGE
-# ============================================================
-
-def _ensure_state():
-
-    if not hasattr(app_state, "high_staff_actions"):
-        app_state.high_staff_actions = defaultdict(lambda: defaultdict(deque))
-
-    if not hasattr(app_state, "high_staff_last_alert"):
-        app_state.high_staff_last_alert = {}
+    while action_log and action_log[0] < cutoff:
+        action_log.pop(0)
 
 
 # ============================================================
@@ -54,65 +50,60 @@ async def track_high_staff_action(
     moderator_name: str,
     action_type: str,
     vrchat_user_id: str | None = None,
-):
-
-    _ensure_state()
-
-    action_type = str(action_type).lower().strip()
-
-    if action_type not in HIGH_STAFF_THRESHOLDS:
+) -> None:
+    if not HIGH_STAFF_ALERT_ENABLED:
         return
 
+    moderator_name = str(moderator_name or "").strip() or "Unknown"
+    action_type = str(action_type or "").strip().lower()
 
-    config = HIGH_STAFF_THRESHOLDS[action_type]
+    if action_type not in {"warn", "kick", "ban"}:
+        return
 
-    threshold = config["threshold"]
-    window_minutes = config["window_minutes"]
+    threshold = _get_threshold_for_action(action_type)
+    window_minutes = HIGH_STAFF_WINDOW_MINUTES
 
+    if threshold <= 0 or window_minutes <= 0:
+        return
 
     now = utc_now()
 
-    action_log = app_state.high_staff_actions[moderator_name][action_type]
+    recent_actions = getattr(app_state, "high_staff_recent_actions", None)
+    if recent_actions is None:
+        app_state.high_staff_recent_actions = {}
+        recent_actions = app_state.high_staff_recent_actions
+
+    cooldowns = getattr(app_state, "high_staff_alert_cooldowns", None)
+    if cooldowns is None:
+        app_state.high_staff_alert_cooldowns = {}
+        cooldowns = app_state.high_staff_alert_cooldowns
+
+    moderator_actions = recent_actions.setdefault(moderator_name, {})
+    action_log = moderator_actions.setdefault(action_type, [])
 
     action_log.append(now)
-
-
-    # remove old entries outside window
-    cutoff = now - timedelta(minutes=window_minutes)
-
-    while action_log and action_log[0] < cutoff:
-        action_log.popleft()
-
+    _prune_old_actions(action_log, window_minutes)
 
     count = len(action_log)
-
-
     if count < threshold:
         return
 
+    cooldown_key = f"{moderator_name}:{action_type}"
+    last_alert_time = cooldowns.get(cooldown_key)
 
-    # cooldown check
-    last_alert_key = f"{moderator_name}:{action_type}"
-
-    last_alert_time = app_state.high_staff_last_alert.get(last_alert_key)
-
-    if last_alert_time:
-
-        cooldown_cutoff = now - timedelta(minutes=ALERT_COOLDOWN_MINUTES)
+    if last_alert_time is not None:
+        cooldown_cutoff = now - timedelta(minutes=HIGH_STAFF_ALERT_COOLDOWN_MINUTES)
 
         if last_alert_time > cooldown_cutoff:
-
             log.debug(
-                "high staff alert suppressed cooldown | mod=%s action=%s",
+                "high staff alert suppressed cooldown | mod=%s action=%s count=%s",
                 moderator_name,
                 action_type,
+                count,
             )
-
             return
 
-
-    app_state.high_staff_last_alert[last_alert_key] = now
-
+    cooldowns[cooldown_key] = now
 
     await send_high_staff_alert(
         bot=app_state.bot,
@@ -124,11 +115,11 @@ async def track_high_staff_action(
         vrchat_user_id=vrchat_user_id,
     )
 
-
     log.warning(
-        "high staff threshold hit | mod=%s action=%s count=%s window=%sm",
+        "high staff threshold hit | mod=%s action=%s count=%s window=%sm threshold=%s",
         moderator_name,
         action_type,
         count,
         window_minutes,
+        threshold,
     )
