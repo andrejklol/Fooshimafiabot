@@ -1065,30 +1065,29 @@ class Commands(commands.Cog):
             )
 
 
+    # ============================================================
+    # ACTIVE STAFF RECORD
+    # Capo+
+    # ============================================================
+
     @commands.hybrid_command(
         name="staffrecord",
-        description="Look up a staff moderation record",
+        description="Look up an active staff moderation record",
     )
     @app_commands.describe(
         staff="Type the leaderboard name or VRChat ID",
-        archived="Search archived staff instead",
     )
     async def staffrecord(
         self,
         ctx: commands.Context,
         staff: str,
-        archived: bool = False,
     ) -> None:
 
-        required_level = LEVEL_CONSIGLIERE if archived else LEVEL_CAPO
-
-        if not await self._require_level(ctx, required_level):
+        if not await self._require_level(ctx, LEVEL_CAPO):
             return
 
         try:
-            data_scope = "archive" if archived else "staff"
-
-            scope_data = self._get_scope_data(data_scope)
+            scope_data = self._get_scope_data("staff")
             q = staff.strip().lower()
 
             staff_id = None
@@ -1120,7 +1119,7 @@ class Commands(commands.Cog):
                     ctx,
                     embed=warning_embed(
                         "Staff Record Not Found",
-                        "No matching record found.",
+                        "No matching active staff record found.",
                     ),
                     ephemeral=True,
                 )
@@ -1131,14 +1130,6 @@ class Commands(commands.Cog):
                 record,
                 None,
             )
-
-            if archived:
-                embed.title = f"Archived Staff Record — {record.get('name')}"
-                embed.add_field(
-                    name="Archived At",
-                    value=str(record.get("archived_at", "Unknown")),
-                    inline=False,
-                )
 
             await respond(
                 ctx,
@@ -1162,36 +1153,151 @@ class Commands(commands.Cog):
     ) -> list[app_commands.Choice[str]]:
         try:
             current = (current or "").lower().strip()
+            scope_data = self._get_scope_data("staff")
 
             choices: list[app_commands.Choice[str]] = []
 
-            for scope_name in ["staff", "archive"]:
-                scope_data = self._get_scope_data(scope_name)
+            for staff_id, record in scope_data.items():
+                name = str(record.get("name", staff_id))
+                haystack = f"{name} {staff_id}".lower()
 
-                for staff_id, record in scope_data.items():
-                    name = str(record.get("name", staff_id))
-                    haystack = f"{name} {staff_id}".lower()
-
-                    if current in haystack:
-                        label = f"{name} ({'archived' if scope_name == 'archive' else 'active'})"
-                        choices.append(
-                            app_commands.Choice(
-                                name=label[:100],
-                                value=staff_id,
-                            )
+                if current in haystack:
+                    choices.append(
+                        app_commands.Choice(
+                            name=name[:100],
+                            value=staff_id,
                         )
+                    )
 
-                    if len(choices) >= 25:
-                        return choices[:25]
+                if len(choices) >= 25:
+                    break
 
-            return choices[:25]
+            return choices
 
         except Exception as exc:
             await send_error_log("Staff Record Autocomplete Error", exc)
             return []
 
+    # ============================================================
+    # ARCHIVED STAFF RECORD
+    # Consigliere+
+    # ============================================================
 
-    @leaderboard.autocomplete("scope")
+    @commands.hybrid_command(
+        name="staffrecordarchived",
+        description="Look up an archived staff moderation record",
+    )
+    @app_commands.describe(
+        staff="Type the archived leaderboard name or VRChat ID",
+    )
+    async def staffrecordarchived(
+        self,
+        ctx: commands.Context,
+        staff: str,
+    ) -> None:
+
+        if not await self._require_level(ctx, LEVEL_CONSIGLIERE):
+            return
+
+        try:
+            scope_data = self._get_scope_data("archive")
+            q = staff.strip().lower()
+
+            staff_id = None
+            record = None
+
+            for sid, rec in scope_data.items():
+                name = str(rec.get("name", "")).lower()
+
+                if q == sid.lower() or q == name:
+                    staff_id = sid
+                    record = rec
+                    break
+
+            if not record:
+                best = (None, None, 0.0)
+
+                for sid, rec in scope_data.items():
+                    name = str(rec.get("name", "")).lower()
+                    score = self._name_similarity(q, name)
+
+                    if score > best[2]:
+                        best = (sid, rec, score)
+
+                if best[2] >= 0.85:
+                    staff_id, record = best[0], best[1]
+
+            if not record:
+                await respond(
+                    ctx,
+                    embed=warning_embed(
+                        "Archived Staff Record Not Found",
+                        "No matching archived staff record found.",
+                    ),
+                    ephemeral=True,
+                )
+                return
+
+            embed = self._build_staff_record_embed(
+                staff_id,
+                record,
+                None,
+            )
+            embed.title = f"Archived Staff Record — {record.get('name')}"
+            embed.add_field(
+                name="Archived At",
+                value=str(record.get("archived_at", "Unknown")),
+                inline=False,
+            )
+
+            await respond(
+                ctx,
+                embed=embed,
+                ephemeral=True,
+            )
+
+        except Exception as exc:
+            await self._handle_mod_error(
+                ctx,
+                "Archived Staff Record Failed",
+                "Archived Staff Record Command Error",
+                exc,
+            )
+
+    @staffrecordarchived.autocomplete("staff")
+    async def staffrecordarchived_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ) -> list[app_commands.Choice[str]]:
+        try:
+            current = (current or "").lower().strip()
+            scope_data = self._get_scope_data("archive")
+
+            choices: list[app_commands.Choice[str]] = []
+
+            for staff_id, record in scope_data.items():
+                name = str(record.get("name", staff_id))
+                haystack = f"{name} {staff_id}".lower()
+
+                if current in haystack:
+                    choices.append(
+                        app_commands.Choice(
+                            name=name[:100],
+                            value=staff_id,
+                        )
+                    )
+
+                if len(choices) >= 25:
+                    break
+
+            return choices
+
+        except Exception as exc:
+            await send_error_log("Archived Staff Record Autocomplete Error", exc)
+            return []
+
+    @leaderboard.autocomplete("scope")    @leaderboard.autocomplete("scope")
     async def leaderboard_scope_autocomplete(
         self,
         interaction: discord.Interaction,
