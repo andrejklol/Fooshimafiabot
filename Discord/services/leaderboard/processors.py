@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from core.cache import app_state
@@ -21,6 +21,8 @@ log = logging.getLogger("leaderboard_processors")
 
 _MOD_ACTIONS = {"warn", "kick", "ban"}
 _SUPPORTED_ACTIONS = {"warn", "kick", "ban", "invite", "invite_accept"}
+
+ARCHIVE_GRACE_PERIOD = timedelta(hours=24)
 
 DISCORD_STAFF_ROLE_NAMES = {
     "godfooshi",
@@ -210,17 +212,23 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
     _ensure_archive_section()
 
     changed = False
-    to_archive: list[str] = []
+    now = datetime.now(timezone.utc)
+
+    if not hasattr(app_state, "archive_pending") or not isinstance(app_state.archive_pending, dict):
+        app_state.archive_pending = {}
 
     guild = bot.get_guild(GUILD_ID) if bot and hasattr(bot, "get_guild") else None
     vrc_to_discord = _build_vrc_to_discord_map()
 
     for staff_id in list(leaderboard_data["staff"].keys()):
+        # Still exists in the VRC staff list -> clear any pending timer.
         if staff_id in current_staff_ids:
+            if staff_id in app_state.archive_pending:
+                del app_state.archive_pending[staff_id]
             continue
 
-        should_keep = False
         display_name = leaderboard_data["staff"].get(staff_id, {}).get("name", staff_id)
+        has_discord_role = False
 
         if guild:
             discord_id = vrc_to_discord.get(staff_id)
@@ -234,30 +242,71 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
                         member = None
 
                 if member and _member_has_discord_staff_role(member):
-                    should_keep = True
-                    log.warning(
-                        "Skipped archive for %s (%s) because Discord staff role is still present",
-                        display_name,
-                        staff_id,
-                    )
+                    has_discord_role = True
 
-        if should_keep:
+        # If Discord staff role is still present, do not archive and clear timer.
+        if has_discord_role:
+            if staff_id in app_state.archive_pending:
+                del app_state.archive_pending[staff_id]
+
+            log.info(
+                "Skipping archive for %s (%s) because Discord staff role is still present",
+                display_name,
+                staff_id,
+            )
             continue
 
-        to_archive.append(staff_id)
+        pending = app_state.archive_pending.get(staff_id)
 
-    for staff_id in to_archive:
+        # First time missing both VRC + Discord roles -> start grace timer.
+        if not pending:
+            app_state.archive_pending[staff_id] = {
+                "missing_since": now.isoformat(),
+            }
+
+            log.info(
+                "Archive grace period started for %s (%s)",
+                display_name,
+                staff_id,
+            )
+            continue
+
+        missing_since_raw = pending.get("missing_since")
+        try:
+            missing_since = datetime.fromisoformat(str(missing_since_raw))
+        except Exception:
+            missing_since = now
+            app_state.archive_pending[staff_id] = {
+                "missing_since": now.isoformat(),
+            }
+            continue
+
+        if missing_since.tzinfo is None:
+            missing_since = missing_since.replace(tzinfo=timezone.utc)
+
+        # Still inside the 24h grace period.
+        if now - missing_since < ARCHIVE_GRACE_PERIOD:
+            continue
+
         entry = leaderboard_data["staff"].pop(staff_id, None)
         if not isinstance(entry, dict):
+            if staff_id in app_state.archive_pending:
+                del app_state.archive_pending[staff_id]
             continue
 
         archived_entry = dict(entry)
         archived_entry["archived_at"] = _utc_now_iso()
+        archived_entry["archive_reason"] = "Missing VRC + Discord staff roles for 24h"
+
         leaderboard_data["archive"][staff_id] = archived_entry
+
+        if staff_id in app_state.archive_pending:
+            del app_state.archive_pending[staff_id]
+
         changed = True
 
         log.warning(
-            "Archived staff member due to missing from VRC sync and no Discord staff role: %s (%s)",
+            "Archived staff member after 24h grace period: %s (%s)",
             archived_entry.get("name", "Unknown"),
             staff_id,
         )
