@@ -30,7 +30,6 @@ _SUPPORTED_ACTIONS = {"warn", "kick", "ban", "invite", "invite_accept"}
 ARCHIVE_GRACE_PERIOD = timedelta(hours=24)
 ARCHIVE_WARNING_AFTER = timedelta(hours=12)
 
-# cleaned role list
 DISCORD_STAFF_ROLE_NAMES = {
     "godfooshi",
     "underboss",
@@ -49,14 +48,17 @@ async def _send_archive_log_message(bot, title: str, description: str) -> None:
         return
 
     try:
-        channel = bot.get_channel(ERROR_LOG_CHANNEL_ID)
+        channel = None
 
-        if not channel and GUILD_ID:
+        if ERROR_LOG_CHANNEL_ID:
+            channel = bot.get_channel(ERROR_LOG_CHANNEL_ID)
+
+        if channel is None and GUILD_ID and hasattr(bot, "get_guild"):
             guild = bot.get_guild(GUILD_ID)
-            if guild:
+            if guild and ERROR_LOG_CHANNEL_ID:
                 channel = guild.get_channel(ERROR_LOG_CHANNEL_ID)
 
-        if not channel:
+        if channel is None:
             return
 
         embed = discord.Embed(
@@ -65,7 +67,6 @@ async def _send_archive_log_message(bot, title: str, description: str) -> None:
             color=discord.Color.orange(),
             timestamp=datetime.now(timezone.utc),
         )
-
         await channel.send(embed=embed)
 
     except Exception as exc:
@@ -73,7 +74,7 @@ async def _send_archive_log_message(bot, title: str, description: str) -> None:
 
 
 def _ensure_section(section: str) -> None:
-    if section not in leaderboard_data:
+    if section not in leaderboard_data or not isinstance(leaderboard_data[section], dict):
         leaderboard_data[section] = {}
 
 
@@ -84,14 +85,54 @@ def _ensure_archive_section() -> None:
 def _coerce_int(value: Any, default: int = 0) -> int:
     try:
         return int(value)
-    except Exception:
+    except (TypeError, ValueError):
         return default
+
+
+def _fallback_name_for_staff(staff_id: str) -> str:
+    return f"User {staff_id.replace('usr_', '')[:8]}"
+
+
+def _is_placeholder_name(name: str | None, staff_id: str | None = None) -> bool:
+    text = str(name or "").strip()
+
+    if not text:
+        return True
+
+    if text.lower() == "unknown":
+        return True
+
+    if staff_id and text == _fallback_name_for_staff(staff_id):
+        return True
+
+    return False
+
+
+def _pick_best_staff_name(
+    staff_id: str,
+    incoming_name: str | None,
+    existing_name: str | None = None,
+) -> str:
+    incoming = str(incoming_name or "").strip()
+    existing = str(existing_name or "").strip()
+    fallback = _fallback_name_for_staff(staff_id)
+
+    if incoming and not _is_placeholder_name(incoming, staff_id):
+        return incoming
+
+    if existing and not _is_placeholder_name(existing, staff_id):
+        return existing
+
+    if existing:
+        return existing
+
+    return fallback
 
 
 def _build_default_staff_entry(staff_id: str, staff_name: str) -> dict:
     return {
         "id": staff_id,
-        "name": staff_name,
+        "name": _pick_best_staff_name(staff_id, staff_name),
         "warn": 0,
         "kick": 0,
         "ban": 0,
@@ -101,28 +142,75 @@ def _build_default_staff_entry(staff_id: str, staff_name: str) -> dict:
     }
 
 
+def _normalize_staff_entry(existing: dict, staff_id: str, staff_name: str) -> bool:
+    changed = False
+    default_entry = _build_default_staff_entry(staff_id, staff_name)
+
+    for key, value in default_entry.items():
+        if key not in existing:
+            existing[key] = value
+            changed = True
+
+    for stat_key in ("warn", "kick", "ban", "invite", "invite_accept", "points"):
+        normalized = _coerce_int(existing.get(stat_key, 0))
+        if existing.get(stat_key) != normalized:
+            existing[stat_key] = normalized
+            changed = True
+
+    if existing.get("id") != staff_id:
+        existing["id"] = staff_id
+        changed = True
+
+    best_name = _pick_best_staff_name(
+        staff_id,
+        incoming_name=staff_name,
+        existing_name=existing.get("name"),
+    )
+    if existing.get("name") != best_name:
+        existing["name"] = best_name
+        changed = True
+
+    return changed
+
+
 def _ensure_staff(section: str, staff_id: str, staff_name: str) -> bool:
     _ensure_section(section)
 
-    if staff_id not in leaderboard_data[section]:
-        leaderboard_data[section][staff_id] = _build_default_staff_entry(
-            staff_id,
-            staff_name,
-        )
+    existing = leaderboard_data[section].get(staff_id)
+    if not isinstance(existing, dict):
+        leaderboard_data[section][staff_id] = _build_default_staff_entry(staff_id, staff_name)
         return True
 
-    return False
+    return _normalize_staff_entry(existing, staff_id, staff_name)
+
+
+def _restore_archived_staff_if_present(staff_id: str, staff_name: str) -> bool:
+    _ensure_section("staff")
+    _ensure_archive_section()
+
+    archived_entry = leaderboard_data["archive"].get(staff_id)
+    if not isinstance(archived_entry, dict):
+        return False
+
+    restored_entry = dict(archived_entry)
+    restored_entry.pop("archived_at", None)
+    restored_entry["restored_at"] = _utc_now_iso()
+
+    _normalize_staff_entry(restored_entry, staff_id, staff_name)
+    leaderboard_data["staff"][staff_id] = restored_entry
+    del leaderboard_data["archive"][staff_id]
+
+    log.info("Restored archived staff member: %s (%s)", staff_name, staff_id)
+    return True
 
 
 def _build_vrc_to_discord_map() -> dict[str, int]:
-    mapping = {}
+    mapping: dict[str, int] = {}
 
     for action_groups in STAFF_ALERT_ORDER.values():
         for _, members in action_groups:
-
             for member in members:
-
-                vrchat_user_id = str(member.get("vrchat_user_id", "")).strip()
+                vrchat_user_id = str(member.get("vrchat_user_id") or "").strip()
                 discord_id = member.get("discord_id")
 
                 if vrchat_user_id and discord_id:
@@ -131,248 +219,431 @@ def _build_vrc_to_discord_map() -> dict[str, int]:
     return mapping
 
 
-# improved matching
 def _member_has_discord_staff_role(member) -> bool:
-
-    roles = [
-        str(role.name).lower().strip()
+    member_roles = [
+        str(role.name).strip().casefold()
         for role in getattr(member, "roles", [])
     ]
 
-    for user_role in roles:
-
+    for user_role in member_roles:
         for staff_role in DISCORD_STAFF_ROLE_NAMES:
-
             if staff_role in user_role:
                 return True
 
     return False
 
 
-# prevents false archive spikes
 def _should_skip_archive(previous_staff_count: int, fetched_staff_count: int) -> bool:
-
     if previous_staff_count <= 0:
         return False
 
     if fetched_staff_count == 0:
         return True
 
-    # if more than 30% of staff suddenly disappear → skip archive
     if fetched_staff_count < max(3, int(previous_staff_count * 0.7)):
-
-        log.warning(
-            "Archive safety triggered: staff drop looked suspicious "
-            "(previous=%s, fetched=%s)",
-            previous_staff_count,
-            fetched_staff_count,
-        )
-
         return True
 
     return False
 
 
 async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
-
     _ensure_section("staff")
     _ensure_archive_section()
 
     changed = False
     now = datetime.now(timezone.utc)
 
-    if not hasattr(app_state, "archive_pending"):
+    if not hasattr(app_state, "archive_pending") or not isinstance(app_state.archive_pending, dict):
         app_state.archive_pending = {}
 
-    if not hasattr(app_state, "archive_warning_sent"):
+    if not hasattr(app_state, "archive_warning_sent") or not isinstance(app_state.archive_warning_sent, dict):
         app_state.archive_warning_sent = {}
 
-    guild = bot.get_guild(GUILD_ID) if bot else None
-
+    guild = bot.get_guild(GUILD_ID) if bot and hasattr(bot, "get_guild") else None
     vrc_to_discord = _build_vrc_to_discord_map()
 
     for staff_id in list(leaderboard_data["staff"].keys()):
-
         if staff_id in current_staff_ids:
-
             app_state.archive_pending.pop(staff_id, None)
             app_state.archive_warning_sent.pop(staff_id, None)
-
             continue
 
-        display_name = leaderboard_data["staff"][staff_id]["name"]
-
+        display_name = leaderboard_data["staff"].get(staff_id, {}).get("name", staff_id)
         has_discord_role = False
 
         if guild:
-
             discord_id = vrc_to_discord.get(staff_id)
-
             if discord_id:
-
                 member = guild.get_member(discord_id)
 
-                if not member:
+                if member is None:
                     try:
                         member = await guild.fetch_member(discord_id)
                     except Exception:
                         member = None
 
                 if member and _member_has_discord_staff_role(member):
-
                     has_discord_role = True
 
-        # if they still have discord role → cancel archive timer
         if has_discord_role:
-
             app_state.archive_pending.pop(staff_id, None)
             app_state.archive_warning_sent.pop(staff_id, None)
 
+            log.info(
+                "Skipping archive for %s (%s) because Discord staff role is still present",
+                display_name,
+                staff_id,
+            )
             continue
 
         pending = app_state.archive_pending.get(staff_id)
 
-        # start timer
         if not pending:
-
             app_state.archive_pending[staff_id] = {
                 "missing_since": now.isoformat(),
             }
 
             log.info(
-                "Archive timer started for %s",
+                "Archive grace period started for %s (%s)",
                 display_name,
+                staff_id,
             )
-
             continue
 
-        missing_since = datetime.fromisoformat(
-            pending["missing_since"]
-        )
+        missing_since_raw = pending.get("missing_since")
+        try:
+            missing_since = datetime.fromisoformat(str(missing_since_raw))
+        except Exception:
+            missing_since = now
+            app_state.archive_pending[staff_id] = {
+                "missing_since": now.isoformat(),
+            }
+            app_state.archive_warning_sent.pop(staff_id, None)
+            continue
+
+        if missing_since.tzinfo is None:
+            missing_since = missing_since.replace(tzinfo=timezone.utc)
 
         elapsed = now - missing_since
 
-        # 12h warning
-        if (
-            elapsed >= ARCHIVE_WARNING_AFTER
-            and not app_state.archive_warning_sent.get(staff_id)
-        ):
-
+        if elapsed >= ARCHIVE_WARNING_AFTER and not app_state.archive_warning_sent.get(staff_id):
             await _send_archive_log_message(
                 bot,
                 "⚠ Staff Pending Archive",
-                f"{display_name} missing roles for 12h",
+                f"**{display_name}** has been missing both Discord and VRChat staff roles for 12 hours.\n"
+                f"They will be archived in 12 more hours if the roles are not restored.",
             )
-
             app_state.archive_warning_sent[staff_id] = True
 
-        # still in grace period
         if elapsed < ARCHIVE_GRACE_PERIOD:
             continue
 
-        # archive
-        entry = leaderboard_data["staff"].pop(staff_id)
+        entry = leaderboard_data["staff"].pop(staff_id, None)
+        if not isinstance(entry, dict):
+            app_state.archive_pending.pop(staff_id, None)
+            app_state.archive_warning_sent.pop(staff_id, None)
+            continue
 
         archived_entry = dict(entry)
-
         archived_entry["archived_at"] = _utc_now_iso()
+        archived_entry["archive_reason"] = "Missing VRC + Discord staff roles for 24h"
 
         leaderboard_data["archive"][staff_id] = archived_entry
 
         app_state.archive_pending.pop(staff_id, None)
         app_state.archive_warning_sent.pop(staff_id, None)
 
+        changed = True
+
         log.warning(
-            "Archived staff after 24h grace: %s",
-            display_name,
+            "Archived staff member after 24h grace period: %s (%s)",
+            archived_entry.get("name", "Unknown"),
+            staff_id,
         )
 
         await _send_archive_log_message(
             bot,
             "📦 Staff Archived",
-            f"{display_name} archived after 24h missing roles",
+            f"**{archived_entry.get('name', 'Unknown')}** was archived after missing both Discord and VRChat staff roles for 24 hours.",
         )
-
-        changed = True
 
     return changed
 
 
-async def sync_all_vrc_staff_into_leaderboard(bot, force_refresh: bool = False) -> int:
+def _ensure_staff_in_needed_sections(
+    staff_id: str,
+    staff_name: str,
+    monthly_only: bool = False,
+) -> bool:
+    changed = False
 
+    if monthly_only:
+        return _ensure_staff("monthly", staff_id, staff_name)
+
+    restored = _restore_archived_staff_if_present(staff_id, staff_name)
+    changed = restored or changed
+    changed = _ensure_staff("staff", staff_id, staff_name) or changed
+    changed = _ensure_staff("monthly", staff_id, staff_name) or changed
+
+    return changed
+
+
+def _increment_stat(entry: dict, key: str, amount: int = 1) -> None:
+    entry[key] = _coerce_int(entry.get(key, 0)) + amount
+
+
+def _add_points(entry: dict, action: str) -> None:
+    entry["points"] = _coerce_int(entry.get("points", 0)) + get_action_score(action)
+
+
+def _apply_action_to_section(
+    section: str,
+    staff_id: str,
+    staff_name: str,
+    action: str,
+) -> None:
+    _ensure_staff(section, staff_id, staff_name)
+
+    if action not in _SUPPORTED_ACTIONS:
+        return
+
+    staff_entry = leaderboard_data[section][staff_id]
+
+    if action == "invite":
+        _increment_stat(staff_entry, "invite")
+        return
+
+    if action == "invite_accept":
+        _increment_stat(staff_entry, "invite_accept")
+        staff_entry["invite"] = _coerce_int(staff_entry.get("invite_accept", 0))
+        _add_points(staff_entry, "invite_accept")
+        return
+
+    _increment_stat(staff_entry, action)
+    _add_points(staff_entry, action)
+
+
+def _apply_action(
+    staff_id: str,
+    staff_name: str,
+    action: str,
+    monthly_only: bool = False,
+) -> None:
+    if monthly_only:
+        _apply_action_to_section("monthly", staff_id, staff_name, action)
+    else:
+        _apply_action_to_section("staff", staff_id, staff_name, action)
+        _apply_action_to_section("monthly", staff_id, staff_name, action)
+
+    app_state.leaderboard_dirty = True
+    save_leaderboard_data()
+
+
+def _get_raw_event_type(entry) -> str:
+    raw = (
+        getattr(entry, "eventType", None)
+        or getattr(entry, "event_type", None)
+        or getattr(entry, "eventtype", None)
+        or ""
+    )
+    return str(raw).lower().strip()
+
+
+def _get_actor(entry):
+    actor = getattr(entry, "actor", None)
+    if actor is not None:
+        return actor.id, getattr(actor, "displayName", "Unknown")
+
+    return getattr(entry, "actor_id", None), "Unknown"
+
+
+def _get_target_id(entry):
+    return getattr(entry, "targetId", None) or getattr(entry, "target_user_id", None)
+
+
+def _get_target_name(entry):
+    target = getattr(entry, "target", None)
+    if target:
+        return getattr(target, "displayName", None)
+
+    return None
+
+
+def _get_action_type(entry) -> str:
+    raw = _get_raw_event_type(entry)
+
+    invite_accept_markers = (
+        "invite.accept",
+        "inviteaccepted",
+        "member.add",
+        "member.join",
+        "user.join",
+        "group.member.add",
+        "group.member.join",
+        "group.user.join",
+    )
+
+    if any(marker in raw for marker in invite_accept_markers):
+        return "invite_accept"
+
+    if "invite" in raw and "accept" not in raw:
+        return "invite"
+
+    if "warn" in raw:
+        return "warn"
+
+    if "kick" in raw:
+        return "kick"
+
+    if "ban" in raw:
+        return "ban"
+
+    return ""
+
+
+async def _is_staff_actor(actor_id: str) -> bool:
+    try:
+        return await vrc_user_is_staff(str(actor_id))
+    except Exception:
+        return False
+
+
+async def _is_staff_target(target_id: str) -> bool:
+    try:
+        return await vrc_user_is_staff(str(target_id))
+    except Exception:
+        return False
+
+
+async def process_audit_log_entry(
+    entry,
+    monthly_only: bool = False,
+):
+    action = _get_action_type(entry)
+    if not action:
+        return False, False
+
+    actor_id, actor_name = _get_actor(entry)
+    if not actor_id:
+        return False, False
+
+    actor_id = str(actor_id)
+    if not await _is_staff_actor(actor_id):
+        return False, False
+
+    target_id = _get_target_id(entry)
+    target_name = _get_target_name(entry)
+    target_is_staff = False
+
+    if target_id:
+        target_id = str(target_id)
+        target_is_staff = await _is_staff_target(target_id)
+
+    _ensure_staff_in_needed_sections(
+        actor_id,
+        actor_name,
+        monthly_only=monthly_only,
+    )
+
+    if action in _MOD_ACTIONS and target_is_staff:
+        return True, False
+
+    triggered = []
+
+    if action == "warn" and target_id:
+        add_warn(target_id, target_name or "Unknown")
+        triggered = get_triggered_thresholds(target_id)
+
+    elif action == "kick" and target_id:
+        add_kick(target_id, target_name or "Unknown")
+        triggered = get_triggered_thresholds(target_id)
+
+    elif action == "ban" and target_id:
+        add_ban(target_id, target_name or "Unknown")
+        triggered = get_triggered_thresholds(target_id)
+
+    if triggered:
+        highest_action = get_highest_action(triggered)
+
+        await send_repeat_alert(
+            pretty_name=target_name or "Unknown",
+            target_id=target_id,
+            triggered=triggered,
+            highest_action=highest_action,
+        )
+
+    _apply_action(
+        actor_id,
+        actor_name,
+        action,
+        monthly_only=monthly_only,
+    )
+
+    return True, False
+
+
+async def sync_all_vrc_staff_into_leaderboard(bot, force_refresh: bool = False) -> int:
     added = 0
     any_changed = False
+    current_staff_ids: set[str] = set()
 
     _ensure_section("staff")
     _ensure_archive_section()
 
-    previous_staff_count = len(leaderboard_data["staff"])
-
-    vrc_members = await get_all_vrc_staff_members(
-        force_refresh=force_refresh
-    )
-
+    previous_staff_count = len(leaderboard_data.get("staff", {}))
+    vrc_members = await get_all_vrc_staff_members(force_refresh=force_refresh)
     fetched_staff_count = len(vrc_members or [])
 
-    current_staff_ids = set()
-
     for member in vrc_members or []:
+        if not isinstance(member, dict):
+            continue
 
         staff_id = str(
             member.get("user_id")
             or member.get("id")
+            or member.get("userId")
             or ""
-        )
-
+        ).strip()
         if not staff_id:
             continue
 
         current_staff_ids.add(staff_id)
 
-        staff_name = (
+        staff_name = str(
             member.get("display_name")
             or member.get("displayName")
+            or member.get("name")
             or "Unknown"
-        )
+        ).strip()
 
-        was_missing = staff_id not in leaderboard_data["staff"]
-
-        changed = _ensure_staff(
-            "staff",
+        was_missing_before = staff_id not in leaderboard_data.get("staff", {})
+        changed = _ensure_staff_in_needed_sections(
             staff_id,
             staff_name,
+            monthly_only=False,
         )
 
-        any_changed = changed or any_changed
+        if changed:
+            any_changed = True
 
-        if was_missing:
+        if was_missing_before and staff_id in leaderboard_data.get("staff", {}):
             added += 1
 
-    if _should_skip_archive(
-        previous_staff_count,
-        fetched_staff_count,
-    ):
+    should_skip_archive = _should_skip_archive(previous_staff_count, fetched_staff_count)
 
+    if should_skip_archive:
         log.warning(
-            "Skipped archive pass "
+            "Skipped archive pass because fetched staff count looked suspicious "
             "(previous=%s, fetched=%s)",
             previous_staff_count,
             fetched_staff_count,
         )
-
     else:
-
-        archived_changed = await _archive_removed_staff(
-            current_staff_ids,
-            bot,
-        )
-
+        archived_changed = await _archive_removed_staff(current_staff_ids, bot)
         any_changed = archived_changed or any_changed
 
     if any_changed:
-
         app_state.leaderboard_dirty = True
-
         save_leaderboard_data()
 
     return added
