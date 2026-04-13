@@ -9,6 +9,12 @@ from core.config import (
     HIGH_STAFF_KICK_THRESHOLD,
     HIGH_STAFF_WARN_THRESHOLD,
     HIGH_STAFF_WINDOW_MINUTES,
+    SUSPICIOUS_ALERT_COOLDOWN_MINUTES,
+    SUSPICIOUS_MOD_ENABLED,
+    SUSPICIOUS_REPEAT_TARGET_THRESHOLD,
+    SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES,
+    SUSPICIOUS_UNIQUE_TARGET_THRESHOLD,
+    SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES,
 )
 from core.utils import utc_now
 from services.alerts import send_high_staff_alert
@@ -42,6 +48,153 @@ def _prune_old_actions(action_log: list, window_minutes: int) -> None:
         action_log.pop(0)
 
 
+def _get_or_create_recent_actions() -> dict:
+    recent_actions = getattr(app_state, "high_staff_recent_actions", None)
+    if recent_actions is None:
+        app_state.high_staff_recent_actions = {}
+        recent_actions = app_state.high_staff_recent_actions
+    return recent_actions
+
+
+def _get_or_create_cooldowns() -> dict:
+    cooldowns = getattr(app_state, "high_staff_alert_cooldowns", None)
+    if cooldowns is None:
+        app_state.high_staff_alert_cooldowns = {}
+        cooldowns = app_state.high_staff_alert_cooldowns
+    return cooldowns
+
+
+def _cooldown_active(cooldowns: dict, key: str, cooldown_minutes: int) -> bool:
+    now = utc_now()
+    last_alert_time = cooldowns.get(key)
+
+    if last_alert_time is None:
+        return False
+
+    cutoff = now - timedelta(minutes=cooldown_minutes)
+    return last_alert_time > cutoff
+
+
+def _set_cooldown(cooldowns: dict, key: str) -> None:
+    cooldowns[key] = utc_now()
+
+
+# ============================================================
+# SUSPICIOUS MOD HELPERS
+# ============================================================
+
+def _track_unique_targets(
+    moderator_actions: dict,
+    target_id: str,
+) -> int:
+    target_log = moderator_actions.setdefault("_all_targets", [])
+    target_log.append((utc_now(), target_id))
+    _prune_old_actions(target_log, SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES)
+
+    unique_targets = {
+        logged_target_id
+        for _ts, logged_target_id in target_log
+        if str(logged_target_id).strip()
+    }
+    return len(unique_targets)
+
+
+def _track_repeat_target(
+    moderator_actions: dict,
+    target_id: str,
+) -> int:
+    repeat_targets = moderator_actions.setdefault("_repeat_targets", {})
+    target_action_log = repeat_targets.setdefault(target_id, [])
+
+    target_action_log.append(utc_now())
+    _prune_old_actions(target_action_log, SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES)
+
+    return len(target_action_log)
+
+
+async def _maybe_send_suspicious_unique_target_alert(
+    *,
+    moderator_name: str,
+    vrchat_user_id: str | None,
+    unique_target_count: int,
+    cooldowns: dict,
+) -> None:
+    if unique_target_count < SUSPICIOUS_UNIQUE_TARGET_THRESHOLD:
+        return
+
+    cooldown_key = f"{moderator_name}:suspicious_unique_targets"
+    if _cooldown_active(cooldowns, cooldown_key, SUSPICIOUS_ALERT_COOLDOWN_MINUTES):
+        log.debug(
+            "suspicious unique-target alert suppressed cooldown | mod=%s count=%s",
+            moderator_name,
+            unique_target_count,
+        )
+        return
+
+    _set_cooldown(cooldowns, cooldown_key)
+
+    await send_high_staff_alert(
+        bot=app_state.bot,
+        moderator_name=moderator_name,
+        action_type="suspicious_unique_targets",
+        count=unique_target_count,
+        window_minutes=SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES,
+        threshold=SUSPICIOUS_UNIQUE_TARGET_THRESHOLD,
+        vrchat_user_id=vrchat_user_id,
+    )
+
+    log.warning(
+        "suspicious unique-target activity | mod=%s count=%s window=%sm threshold=%s",
+        moderator_name,
+        unique_target_count,
+        SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES,
+        SUSPICIOUS_UNIQUE_TARGET_THRESHOLD,
+    )
+
+
+async def _maybe_send_suspicious_repeat_target_alert(
+    *,
+    moderator_name: str,
+    vrchat_user_id: str | None,
+    target_id: str,
+    repeat_target_count: int,
+    cooldowns: dict,
+) -> None:
+    if repeat_target_count < SUSPICIOUS_REPEAT_TARGET_THRESHOLD:
+        return
+
+    cooldown_key = f"{moderator_name}:suspicious_repeat_target:{target_id}"
+    if _cooldown_active(cooldowns, cooldown_key, SUSPICIOUS_ALERT_COOLDOWN_MINUTES):
+        log.debug(
+            "suspicious repeat-target alert suppressed cooldown | mod=%s target=%s count=%s",
+            moderator_name,
+            target_id,
+            repeat_target_count,
+        )
+        return
+
+    _set_cooldown(cooldowns, cooldown_key)
+
+    await send_high_staff_alert(
+        bot=app_state.bot,
+        moderator_name=moderator_name,
+        action_type=f"suspicious_repeat_target ({target_id})",
+        count=repeat_target_count,
+        window_minutes=SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES,
+        threshold=SUSPICIOUS_REPEAT_TARGET_THRESHOLD,
+        vrchat_user_id=vrchat_user_id,
+    )
+
+    log.warning(
+        "suspicious repeat-target activity | mod=%s target=%s count=%s window=%sm threshold=%s",
+        moderator_name,
+        target_id,
+        repeat_target_count,
+        SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES,
+        SUSPICIOUS_REPEAT_TARGET_THRESHOLD,
+    )
+
+
 # ============================================================
 # TRACK ACTION
 # ============================================================
@@ -50,12 +203,16 @@ async def track_high_staff_action(
     moderator_name: str,
     action_type: str,
     vrchat_user_id: str | None = None,
+    target_id: str | None = None,
+    target_name: str | None = None,
 ) -> None:
     if not HIGH_STAFF_ALERT_ENABLED:
         return
 
     moderator_name = str(moderator_name or "").strip() or "Unknown"
     action_type = str(action_type or "").strip().lower()
+    target_id = str(target_id or "").strip() or None
+    target_name = str(target_name or "").strip() or None
 
     if action_type not in {"warn", "kick", "ban"}:
         return
@@ -68,15 +225,8 @@ async def track_high_staff_action(
 
     now = utc_now()
 
-    recent_actions = getattr(app_state, "high_staff_recent_actions", None)
-    if recent_actions is None:
-        app_state.high_staff_recent_actions = {}
-        recent_actions = app_state.high_staff_recent_actions
-
-    cooldowns = getattr(app_state, "high_staff_alert_cooldowns", None)
-    if cooldowns is None:
-        app_state.high_staff_alert_cooldowns = {}
-        cooldowns = app_state.high_staff_alert_cooldowns
+    recent_actions = _get_or_create_recent_actions()
+    cooldowns = _get_or_create_cooldowns()
 
     moderator_actions = recent_actions.setdefault(moderator_name, {})
     action_log = moderator_actions.setdefault(action_type, [])
@@ -85,41 +235,63 @@ async def track_high_staff_action(
     _prune_old_actions(action_log, window_minutes)
 
     count = len(action_log)
-    if count < threshold:
-        return
 
-    cooldown_key = f"{moderator_name}:{action_type}"
-    last_alert_time = cooldowns.get(cooldown_key)
+    if count >= threshold:
+        cooldown_key = f"{moderator_name}:{action_type}"
 
-    if last_alert_time is not None:
-        cooldown_cutoff = now - timedelta(minutes=HIGH_STAFF_ALERT_COOLDOWN_MINUTES)
-
-        if last_alert_time > cooldown_cutoff:
+        if _cooldown_active(
+            cooldowns,
+            cooldown_key,
+            HIGH_STAFF_ALERT_COOLDOWN_MINUTES,
+        ):
             log.debug(
                 "high staff alert suppressed cooldown | mod=%s action=%s count=%s",
                 moderator_name,
                 action_type,
                 count,
             )
-            return
+        else:
+            _set_cooldown(cooldowns, cooldown_key)
 
-    cooldowns[cooldown_key] = now
+            await send_high_staff_alert(
+                bot=app_state.bot,
+                moderator_name=moderator_name,
+                action_type=action_type,
+                count=count,
+                window_minutes=window_minutes,
+                threshold=threshold,
+                vrchat_user_id=vrchat_user_id,
+            )
 
-    await send_high_staff_alert(
-        bot=app_state.bot,
+            log.warning(
+                "high staff threshold hit | mod=%s action=%s count=%s window=%sm threshold=%s",
+                moderator_name,
+                action_type,
+                count,
+                window_minutes,
+                threshold,
+            )
+
+    if not SUSPICIOUS_MOD_ENABLED:
+        return
+
+    if not target_id:
+        return
+
+    unique_target_count = _track_unique_targets(moderator_actions, target_id)
+    repeat_target_count = _track_repeat_target(moderator_actions, target_id)
+
+    await _maybe_send_suspicious_unique_target_alert(
         moderator_name=moderator_name,
-        action_type=action_type,
-        count=count,
-        window_minutes=window_minutes,
-        threshold=threshold,
         vrchat_user_id=vrchat_user_id,
+        unique_target_count=unique_target_count,
+        cooldowns=cooldowns,
     )
 
-    log.warning(
-        "high staff threshold hit | mod=%s action=%s count=%s window=%sm threshold=%s",
-        moderator_name,
-        action_type,
-        count,
-        window_minutes,
-        threshold,
+    await _maybe_send_suspicious_repeat_target_alert(
+        moderator_name=moderator_name,
+        vrchat_user_id=vrchat_user_id,
+        target_id=target_name or target_id,
+        repeat_target_count=repeat_target_count,
+        cooldowns=cooldowns,
     )
