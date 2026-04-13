@@ -4,7 +4,7 @@ import traceback
 import discord
 from discord.ext import commands
 
-from cogs.commands import Commands, perform_command_sync
+from cogs.commands.owner_commands import perform_command_sync
 from cogs.error_handler import ErrorHandler
 from cogs.general import General
 from cogs.tasks import TasksCog
@@ -18,8 +18,8 @@ from services.leaderboard.service import (
 )
 from services.leaderboard.storage import leaderboard_data
 from services.offenders.storage import (
-    load_repeat_offenders,
     ensure_structure,
+    load_repeat_offenders,
 )
 from services.vrchat_client import (
     login_vrchat,
@@ -69,9 +69,14 @@ async def setup_hook():
     logger.info("Loading cogs...")
 
     await bot.add_cog(General(bot))
-    await bot.add_cog(Commands(bot))
     await bot.add_cog(TasksCog(bot))
     await bot.add_cog(ErrorHandler(bot))
+
+    await bot.load_extension("cogs.commands.owner_commands")
+    await bot.load_extension("cogs.commands.underboss_commands")
+    await bot.load_extension("cogs.commands.consigliere_commands")
+    await bot.load_extension("cogs.commands.capo_commands")
+    await bot.load_extension("cogs.commands.general_commands")
 
     logger.info("Cogs loaded.")
 
