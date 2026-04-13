@@ -10,10 +10,13 @@ from services.vrchat_client import (
     get_all_vrc_staff_members,
     vrc_user_is_staff,
 )
-from services.offenders.tracking import (
+from services.offenders import (
     add_warn,
     add_kick,
     add_ban,
+    get_triggered_thresholds,
+    get_highest_action,
+    send_repeat_alert,
 )
 
 from .scoring import get_action_score
@@ -257,7 +260,6 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
     vrc_to_discord = _build_vrc_to_discord_map()
 
     for staff_id in list(leaderboard_data["staff"].keys()):
-        # Still exists in the VRC staff list -> clear any pending timer / warning.
         if staff_id in current_staff_ids:
             app_state.archive_pending.pop(staff_id, None)
             app_state.archive_warning_sent.pop(staff_id, None)
@@ -280,7 +282,6 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
                 if member and _member_has_discord_staff_role(member):
                     has_discord_role = True
 
-        # If Discord staff role is still present, do not archive and clear timer / warning.
         if has_discord_role:
             app_state.archive_pending.pop(staff_id, None)
             app_state.archive_warning_sent.pop(staff_id, None)
@@ -294,7 +295,6 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
 
         pending = app_state.archive_pending.get(staff_id)
 
-        # First time missing both VRC + Discord roles -> start grace timer.
         if not pending:
             app_state.archive_pending[staff_id] = {
                 "missing_since": now.isoformat(),
@@ -323,7 +323,6 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
 
         elapsed = now - missing_since
 
-        # 12 hour warning, once.
         if elapsed >= ARCHIVE_WARNING_AFTER and not app_state.archive_warning_sent.get(staff_id):
             await _send_archive_log_message(
                 bot,
@@ -333,7 +332,6 @@ async def _archive_removed_staff(current_staff_ids: set[str], bot) -> bool:
             )
             app_state.archive_warning_sent[staff_id] = True
 
-        # Still inside the 24h grace period.
         if elapsed < ARCHIVE_GRACE_PERIOD:
             continue
 
@@ -414,7 +412,6 @@ def _apply_action_to_section(
 
     if action == "invite_accept":
         _increment_stat(staff_entry, "invite_accept")
-        # Keep invite count matched to accepted invites for leaderboard simplicity.
         staff_entry["invite"] = _coerce_int(staff_entry.get("invite_accept", 0))
         _add_points(staff_entry, "invite_accept")
         return
@@ -548,12 +545,29 @@ async def process_audit_log_entry(
     if action in _MOD_ACTIONS and target_is_staff:
         return True, False
 
+    triggered = []
+
     if action == "warn" and target_id:
         add_warn(target_id, target_name or "Unknown")
+        triggered = get_triggered_thresholds(target_id)
+
     elif action == "kick" and target_id:
         add_kick(target_id, target_name or "Unknown")
+        triggered = get_triggered_thresholds(target_id)
+
     elif action == "ban" and target_id:
         add_ban(target_id, target_name or "Unknown")
+        triggered = get_triggered_thresholds(target_id)
+
+    if triggered:
+        highest_action = get_highest_action(triggered)
+
+        await send_repeat_alert(
+            pretty_name=target_name or "Unknown",
+            target_id=target_id,
+            triggered=triggered,
+            highest_action=highest_action,
+        )
 
     _apply_action(
         actor_id,
