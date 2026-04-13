@@ -9,7 +9,6 @@ from core.cache import app_state
 from services.leaderboard.scoring import build_score_footer
 from services.leaderboard.storage import leaderboard_data
 
-LEVEL_CAPO = 2
 
 class CapoCommands(commands.Cog):
 
@@ -123,4 +122,6 @@ class CapoCommands(commands.Cog):
 
         await respond(ctx, embed=embed, ephemeral=True)
 
-async def setup(bot): await bot.add_cog(CapoCommands(bot))
+
+async def setup(bot):
+    await bot.add_cog(CapoCommands(bot))
