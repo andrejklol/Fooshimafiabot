@@ -18,6 +18,7 @@ from services.offenders import (
     get_highest_action,
     send_repeat_alert,
 )
+from services.high_staff import track_high_staff_action
 
 from .scoring import get_action_score
 from .storage import leaderboard_data, save_leaderboard_data
@@ -552,14 +553,29 @@ async def process_audit_log_entry(
 
     if action == "warn" and target_id:
         add_warn(target_id, target_name or "Unknown")
+        await track_high_staff_action(
+            moderator_name=actor_name,
+            action_type="warn",
+            vrchat_user_id=actor_id,
+        )
         triggered = get_triggered_thresholds(target_id)
 
     elif action == "kick" and target_id:
         add_kick(target_id, target_name or "Unknown")
+        await track_high_staff_action(
+            moderator_name=actor_name,
+            action_type="kick",
+            vrchat_user_id=actor_id,
+        )
         triggered = get_triggered_thresholds(target_id)
 
     elif action == "ban" and target_id:
         add_ban(target_id, target_name or "Unknown")
+        await track_high_staff_action(
+            moderator_name=actor_name,
+            action_type="ban",
+            vrchat_user_id=actor_id,
+        )
         triggered = get_triggered_thresholds(target_id)
 
     if triggered:
