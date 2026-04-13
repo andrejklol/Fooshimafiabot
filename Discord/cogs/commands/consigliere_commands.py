@@ -20,7 +20,6 @@ from .permissions import check_level, LEVEL_CONSIGLIERE
 
 
 class ConsigliereCommands(commands.Cog):
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -29,7 +28,6 @@ class ConsigliereCommands(commands.Cog):
     # ============================================================
 
     def _chunk(self, text: str, limit: int = 1900) -> list[str]:
-
         if len(text) <= limit:
             return [text]
 
@@ -37,16 +35,12 @@ class ConsigliereCommands(commands.Cog):
         current = ""
 
         for line in text.splitlines():
-
             line = line + "\n"
 
             if len(current) + len(line) > limit:
-
                 if current:
                     parts.append(current.rstrip())
-
                 current = line
-
             else:
                 current += line
 
@@ -55,9 +49,7 @@ class ConsigliereCommands(commands.Cog):
 
         return parts
 
-
-    def _get_archive(self):
-
+    def _get_archive(self) -> dict:
         data = leaderboard_data.get("archive", {})
 
         if isinstance(data, dict):
@@ -65,18 +57,12 @@ class ConsigliereCommands(commands.Cog):
 
         return {}
 
-
     async def _run_refresh_vrc_members(self):
-
         await refresh_vrc_group_members(force=True)
 
-        vrc_staff_members = await get_all_vrc_staff_members(
-            force_refresh=False
-        )
+        vrc_staff_members = await get_all_vrc_staff_members(force_refresh=False)
 
-        synced_count = await sync_all_vrc_staff_into_leaderboard(
-            self.bot
-        )
+        synced_count = await sync_all_vrc_staff_into_leaderboard(self.bot)
 
         return (
             len(app_state.vrc_group_member_roles),
@@ -84,7 +70,6 @@ class ConsigliereCommands(commands.Cog):
             len(vrc_staff_members),
             synced_count,
         )
-
 
     # ============================================================
     # REFRESH VRC MEMBERS
@@ -95,9 +80,7 @@ class ConsigliereCommands(commands.Cog):
         description="Refresh cached VRChat group members and roles",
     )
     async def refreshvrcmembers(self, ctx: commands.Context):
-
         if not await check_level(ctx, LEVEL_CONSIGLIERE):
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -106,25 +89,16 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
 
-
         try:
-
             if getattr(ctx, "interaction", None):
-
                 if not ctx.interaction.response.is_done():
-
-                    await ctx.interaction.response.defer(
-                        ephemeral=True
-                    )
-
+                    await ctx.interaction.response.defer(ephemeral=True)
 
             member_count, role_count, staff_count, synced_count = (
                 await self._run_refresh_vrc_members()
             )
-
 
             description = "\n".join(
                 [
@@ -135,7 +109,6 @@ class ConsigliereCommands(commands.Cog):
                 ]
             )
 
-
             await respond(
                 ctx,
                 embed=success_embed(
@@ -145,9 +118,7 @@ class ConsigliereCommands(commands.Cog):
                 ephemeral=True,
             )
 
-
         except Exception as exc:
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -156,7 +127,6 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
 
     # ============================================================
     # STAFF STATUS
@@ -167,9 +137,7 @@ class ConsigliereCommands(commands.Cog):
         description="Show VRChat online status of staff",
     )
     async def staffstatus(self, ctx: commands.Context):
-
         if not await check_level(ctx, LEVEL_CONSIGLIERE):
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -178,14 +146,11 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
-
 
         guild = self.bot.get_guild(GUILD_ID)
 
         if not guild:
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -194,62 +159,37 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
 
-
         try:
-
             if getattr(ctx, "interaction", None):
-
                 if not ctx.interaction.response.is_done():
-
-                    await ctx.interaction.response.defer(
-                        ephemeral=True
-                    )
-
+                    await ctx.interaction.response.defer(ephemeral=True)
 
             lines = []
 
-
             for action, groups in STAFF_ALERT_ORDER.items():
-
                 lines.append(f"## {action}")
 
-
                 for rank_name, members in groups:
-
                     lines.append(f"**{rank_name}**")
 
-
                     for entry in members:
-
-                        member = guild.get_member(
-                            entry["discord_id"]
-                        )
-
+                        member = guild.get_member(entry["discord_id"])
 
                         online, _, status = await get_vrchat_user_status(
                             vrchat_username=entry.get("vrchat_username"),
                             vrchat_user_id=entry.get("vrchat_user_id"),
                         )
 
-
-                        name = (
-                            member.display_name
-                            if member
-                            else "Unknown"
-                        )
-
+                        name = member.display_name if member else "Unknown"
 
                         lines.append(
                             f"- {name} | {status} | "
                             f"{'ONLINE' if online else 'OFFLINE'}"
                         )
 
-
             chunks = self._chunk("\n".join(lines))
-
 
             await respond(
                 ctx,
@@ -260,27 +200,17 @@ class ConsigliereCommands(commands.Cog):
                 ephemeral=True,
             )
 
-
             if getattr(ctx, "interaction", None):
-
                 for chunk in chunks:
-
                     await ctx.interaction.followup.send(
                         f"```\n{chunk}\n```",
                         ephemeral=True,
                     )
-
             else:
-
                 for chunk in chunks:
-
-                    await ctx.send(
-                        f"```\n{chunk}\n```"
-                    )
-
+                    await ctx.send(f"```\n{chunk}\n```")
 
         except Exception as exc:
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -289,7 +219,6 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
 
     # ============================================================
     # ARCHIVED STAFF RECORD
@@ -304,9 +233,7 @@ class ConsigliereCommands(commands.Cog):
         ctx: commands.Context,
         staff: str,
     ):
-
         if not await check_level(ctx, LEVEL_CONSIGLIERE):
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -315,17 +242,12 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
 
-
         archive = self._get_archive()
-
         record = archive.get(staff)
 
-
         if not record:
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -334,46 +256,21 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
 
+        embed = info_embed(f"Archived Record — {staff}")
 
-        embed = info_embed(
-            f"Archived Record — {staff}"
-        )
-
-        embed.add_field(
-            name="Warn",
-            value=str(record.get("warn", 0)),
-        )
-
-        embed.add_field(
-            name="Kick",
-            value=str(record.get("kick", 0)),
-        )
-
-        embed.add_field(
-            name="Ban",
-            value=str(record.get("ban", 0)),
-        )
-
-        embed.add_field(
-            name="Points",
-            value=str(record.get("points", 0)),
-        )
-
-        embed.add_field(
-            name="Archived",
-            value=str(record.get("archived_at")),
-        )
-
+        embed.add_field(name="Warn", value=str(record.get("warn", 0)))
+        embed.add_field(name="Kick", value=str(record.get("kick", 0)))
+        embed.add_field(name="Ban", value=str(record.get("ban", 0)))
+        embed.add_field(name="Points", value=str(record.get("points", 0)))
+        embed.add_field(name="Archived", value=str(record.get("archived_at")))
 
         await respond(
             ctx,
             embed=embed,
             ephemeral=True,
         )
-
 
     # ============================================================
     # TEST HIGH STAFF ALERT
@@ -388,18 +285,9 @@ class ConsigliereCommands(commands.Cog):
     )
     @app_commands.choices(
         action=[
-            app_commands.Choice(
-                name="Warn",
-                value="warn",
-            ),
-            app_commands.Choice(
-                name="Kick",
-                value="kick",
-            ),
-            app_commands.Choice(
-                name="Ban",
-                value="ban",
-            ),
+            app_commands.Choice(name="Warn", value="warn"),
+            app_commands.Choice(name="Kick", value="kick"),
+            app_commands.Choice(name="Ban", value="ban"),
         ]
     )
     async def testhighstaff(
@@ -407,9 +295,7 @@ class ConsigliereCommands(commands.Cog):
         ctx: commands.Context,
         action: str,
     ):
-
         if not await check_level(ctx, LEVEL_CONSIGLIERE):
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -418,53 +304,36 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
-
 
         action = str(action).lower().strip()
 
-
         try:
-
             if getattr(ctx, "interaction", None):
-
                 if not ctx.interaction.response.is_done():
+                    await ctx.interaction.response.defer(ephemeral=True)
 
-                    await ctx.interaction.response.defer(
-                        ephemeral=True
-                    )
-
+            moderator_name = getattr(ctx.author, "display_name", None) or str(ctx.author)
 
             for i in range(12):
-
                 await track_high_staff_action(
-
+                    moderator_name=moderator_name,
                     action_type=action,
-
-                    discord_user_id=str(
-                        ctx.author.id
-                    ),
-
+                    discord_user_id=str(ctx.author.id),
                     target_id=f"test_user_{i}",
-
                     target_name=f"TestUser{i}",
                 )
-
 
             await respond(
                 ctx,
                 embed=success_embed(
                     "Test Triggered",
-                    f"Simulated **{action}** spike.\n"
-                    "Check alert channel.",
+                    f"Simulated **{action}** spike.\nCheck alert channel.",
                 ),
                 ephemeral=True,
             )
 
-
         except Exception as exc:
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -476,7 +345,4 @@ class ConsigliereCommands(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
-
-    await bot.add_cog(
-        ConsigliereCommands(bot)
-    )
+    await bot.add_cog(ConsigliereCommands(bot))
