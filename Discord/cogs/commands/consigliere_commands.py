@@ -1,12 +1,11 @@
-import discord from discord import app_commands from discord.ext import
-commands
+import discord
+from discord.ext import commands
 
-from core.embeds import info_embed, success_embed, warning_embed from
-core.utils import respond, send_error_log
+from core.embeds import info_embed, warning_embed
+from core.utils import respond
 
-from services.leaderboard.storage import leaderboard_data from
-services.vrchat_client import get_vrchat_user_status from core.config
-import GUILD_ID, STAFF_ALERT_ORDER
+from services.leaderboard.storage import leaderboard_data
+from services.vrchat_client import get_vrchat_user_status
 
 class ConsigliereCommands(commands.Cog):
 
