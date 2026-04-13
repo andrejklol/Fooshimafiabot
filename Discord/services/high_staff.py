@@ -44,8 +44,14 @@ def _get_threshold_for_action(action_type: str) -> int:
 def _prune_old_actions(action_log: list, window_minutes: int) -> None:
     cutoff = utc_now() - timedelta(minutes=window_minutes)
 
-    while action_log and action_log[0] < cutoff:
-        action_log.pop(0)
+    while action_log:
+        first = action_log[0]
+        first_ts = first[0] if isinstance(first, tuple) else first
+
+        if first_ts < cutoff:
+            action_log.pop(0)
+        else:
+            break
 
 
 def _get_or_create_recent_actions() -> dict:
