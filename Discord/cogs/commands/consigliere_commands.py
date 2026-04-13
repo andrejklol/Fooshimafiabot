@@ -6,6 +6,8 @@ from core.utils import respond
 
 from services.leaderboard.storage import leaderboard_data
 from services.vrchat_client import get_vrchat_user_status
+from core.config import GUILD_ID, STAFF_ALERT_ORDER
+
 
 class ConsigliereCommands(commands.Cog):
 
@@ -28,12 +30,10 @@ class ConsigliereCommands(commands.Cog):
         for line in text.splitlines():
 
             if len(current) + len(line) > limit:
-
                 parts.append(current)
                 current = line
 
             else:
-
                 current += "\n" + line
 
         parts.append(current)
@@ -50,7 +50,6 @@ class ConsigliereCommands(commands.Cog):
         guild = self.bot.get_guild(GUILD_ID)
 
         if not guild:
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -59,9 +58,7 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
-
 
         lines = []
 
@@ -88,7 +85,6 @@ class ConsigliereCommands(commands.Cog):
                         f"- {name} | {status} | {'ONLINE' if online else 'OFFLINE'}"
                     )
 
-
         chunks = self._chunk("\n".join(lines))
 
         embed = info_embed(
@@ -99,7 +95,6 @@ class ConsigliereCommands(commands.Cog):
         await respond(ctx, embed=embed, ephemeral=True)
 
         for c in chunks:
-
             await ctx.send(f"```\n{c}\n```")
 
 
@@ -108,7 +103,6 @@ class ConsigliereCommands(commands.Cog):
     # ============================================================
 
     def _get_archive(self):
-
         return leaderboard_data.get("archive", {})
 
 
@@ -123,7 +117,6 @@ class ConsigliereCommands(commands.Cog):
         record = archive.get(staff)
 
         if not record:
-
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -132,31 +125,14 @@ class ConsigliereCommands(commands.Cog):
                 ),
                 ephemeral=True,
             )
-
             return
-
 
         embed = info_embed(f"Archived Record — {staff}")
 
-        embed.add_field(
-            name="Warn",
-            value=str(record.get("warn", 0)),
-        )
-
-        embed.add_field(
-            name="Kick",
-            value=str(record.get("kick", 0)),
-        )
-
-        embed.add_field(
-            name="Ban",
-            value=str(record.get("ban", 0)),
-        )
-
-        embed.add_field(
-            name="Points",
-            value=str(record.get("points", 0)),
-        )
+        embed.add_field(name="Warn", value=str(record.get("warn", 0)))
+        embed.add_field(name="Kick", value=str(record.get("kick", 0)))
+        embed.add_field(name="Ban", value=str(record.get("ban", 0)))
+        embed.add_field(name="Points", value=str(record.get("points", 0)))
 
         embed.add_field(
             name="Archived",
@@ -165,6 +141,6 @@ class ConsigliereCommands(commands.Cog):
 
         await respond(ctx, embed=embed, ephemeral=True)
 
-async def setup(bot):
 
+async def setup(bot):
     await bot.add_cog(ConsigliereCommands(bot))
