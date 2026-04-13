@@ -1,5 +1,4 @@
 import logging
-
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -37,6 +36,7 @@ log = logging.getLogger("owner_commands")
 # ============================================================
 
 async def perform_command_sync(bot: commands.Bot, clear_guild: bool = False) -> str:
+
     if not GUILD_ID:
         synced = await bot.tree.sync()
         return f"Globally synced {len(synced)} commands."
@@ -48,33 +48,31 @@ async def perform_command_sync(bot: commands.Bot, clear_guild: bool = False) -> 
         await bot.tree.sync(guild=guild)
 
     bot.tree.copy_global_to(guild=guild)
+
     synced = await bot.tree.sync(guild=guild)
 
     return f"Guild synced {len(synced)} commands."
 
 
 # ============================================================
-# OWNER GROUP COMMANDS
+# OWNER COMMANDS
 # ============================================================
 
-class OwnerCommands(
-    commands.GroupCog,
-    group_name="owner",
-    group_description="Owner commands",
-):
+class OwnerCommands(commands.Cog):
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
 
     # ============================================================
     # RESET ALL VRC DATA
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="resetvrcdata",
         description="Reset leaderboard and repeat offender data",
     )
-    async def resetvrcdata(self, interaction: discord.Interaction) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
+    async def resetvrcdata(self, ctx: commands.Context):
 
         if not await check_level(ctx, LEVEL_OWNER):
             return
@@ -91,11 +89,12 @@ class OwnerCommands(
             ephemeral=True,
         )
 
+
     # ============================================================
     # LOAD VRC HISTORY
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="loadvrchistory",
         description="Load past VRChat audit logs",
     )
@@ -106,17 +105,17 @@ class OwnerCommands(
     )
     async def loadvrchistory(
         self,
-        interaction: discord.Interaction,
+        ctx: commands.Context,
         amount: int = 5000,
         rebuild: bool = True,
         monthly_only: bool = False,
-    ) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
+    ):
 
         if not await check_level(ctx, LEVEL_OWNER):
             return
 
         if amount <= 0:
+
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -130,6 +129,7 @@ class OwnerCommands(
         amount = min(amount, MAX_HISTORY_LOAD)
 
         if vrchat_cooldown_active():
+
             await respond(
                 ctx,
                 embed=warning_embed(
@@ -141,8 +141,9 @@ class OwnerCommands(
             return
 
         try:
-            if not interaction.response.is_done():
-                await interaction.response.defer(ephemeral=True)
+
+            if ctx.interaction and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
 
             result = await load_full_history(
                 limit=amount,
@@ -150,7 +151,7 @@ class OwnerCommands(
                 monthly_only=monthly_only,
             )
 
-            await interaction.followup.send(
+            await ctx.interaction.followup.send(
                 embed=success_embed(
                     "History Loaded",
                     f"Processed {result} log entries.",
@@ -159,53 +160,46 @@ class OwnerCommands(
             )
 
         except Exception as exc:
-            if interaction.response.is_done():
-                await interaction.followup.send(
-                    embed=warning_embed(
-                        "History Load Failed",
-                        str(exc),
-                    ),
-                    ephemeral=True,
-                )
-            else:
-                await respond(
-                    ctx,
-                    embed=warning_embed(
-                        "History Load Failed",
-                        str(exc),
-                    ),
-                    ephemeral=True,
-                )
+
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "History Load Failed",
+                    str(exc),
+                ),
+                ephemeral=True,
+            )
+
 
     # ============================================================
-    # NEW GROUPED SYNC COMMAND
+    # SYNC COMMANDS
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="synccommands",
         description="Sync slash commands",
     )
     @app_commands.describe(clear_guild="Clear guild commands first")
     async def synccommands(
         self,
-        interaction: discord.Interaction,
+        ctx: commands.Context,
         clear_guild: bool = False,
-    ) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
+    ):
 
         if not await check_level(ctx, LEVEL_OWNER):
             return
 
         try:
-            if not interaction.response.is_done():
-                await interaction.response.defer(ephemeral=True)
+
+            if ctx.interaction and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
 
             result = await perform_command_sync(
                 self.bot,
                 clear_guild=clear_guild,
             )
 
-            await interaction.followup.send(
+            await ctx.interaction.followup.send(
                 embed=success_embed(
                     "Commands Synced",
                     result,
@@ -214,29 +208,22 @@ class OwnerCommands(
             )
 
         except Exception as exc:
-            if interaction.response.is_done():
-                await interaction.followup.send(
-                    embed=warning_embed(
-                        "Sync Failed",
-                        str(exc),
-                    ),
-                    ephemeral=True,
-                )
-            else:
-                await respond(
-                    ctx,
-                    embed=warning_embed(
-                        "Sync Failed",
-                        str(exc),
-                    ),
-                    ephemeral=True,
-                )
+
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Sync Failed",
+                    str(exc),
+                ),
+                ephemeral=True,
+            )
+
 
     # ============================================================
     # SIMULATE REPEAT ALERT
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="simulaterepeatalert",
         description="Trigger test repeat offender alert",
     )
@@ -249,20 +236,22 @@ class OwnerCommands(
     )
     async def simulaterepeatalert(
         self,
-        interaction: discord.Interaction,
+        ctx: commands.Context,
         action: app_commands.Choice[str],
-    ) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
+    ):
 
         if not await check_level(ctx, LEVEL_OWNER):
             return
 
         mapping = {
+
             "warn": [("warn", 3, 7, 3)],
+
             "kick": [
                 ("warn", 5, 7, 3),
                 ("kick", 2, 30, 2),
             ],
+
             "ban": [
                 ("warn", 6, 7, 3),
                 ("kick", 3, 30, 2),
@@ -271,9 +260,13 @@ class OwnerCommands(
         }
 
         await send_repeat_alert(
+
             pretty_name="TestUser",
+
             target_id="usr_test",
+
             triggered=mapping[action.value],
+
             highest_action=action.value,
         )
 
@@ -286,24 +279,22 @@ class OwnerCommands(
             ephemeral=True,
         )
 
+
     # ============================================================
     # RESET MONTHLY LEADERBOARD
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="reset_monthly_leaderboard",
         description="Reset monthly leaderboard",
     )
-    async def reset_monthly_leaderboard(
-        self,
-        interaction: discord.Interaction,
-    ) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
+    async def reset_monthly_leaderboard(self, ctx: commands.Context):
 
         if not await check_level(ctx, LEVEL_OWNER):
             return
 
         async with app_state.leaderboard_lock:
+
             reset_monthly_leaderboard_data()
 
         await respond(
@@ -315,103 +306,60 @@ class OwnerCommands(
             ephemeral=True,
         )
 
+
     # ============================================================
     # TEST ERROR
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="testerror",
         description="Send test error embed",
     )
-    async def testerror(self, interaction: discord.Interaction) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
+    async def testerror(self, ctx: commands.Context):
 
         if not await check_level(ctx, LEVEL_OWNER):
             return
 
         try:
+
             1 / 0
 
         except Exception as exc:
+
             await send_error_embed(
+
                 self.bot,
+
                 ERROR_LOG_CHANNEL_ID,
+
                 title="Test Error",
+
                 description=str(exc),
+
                 trace_id="testerror",
+
                 level="error",
             )
 
         await respond(
+
             ctx,
+
             embed=success_embed(
+
                 "Error Sent",
+
                 "Check error log channel.",
             ),
+
             ephemeral=True,
         )
 
 
 # ============================================================
-# TEMP LEGACY TOP-LEVEL SYNC COG
-# lets /synccommands work one last time
+# LOAD COG
 # ============================================================
 
-class LegacySyncCommands(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
+async def setup(bot: commands.Bot):
 
-    @commands.hybrid_command(
-        name="synccommands",
-        description="Sync slash commands",
-    )
-    @app_commands.describe(clear_guild="Clear guild commands first")
-    async def synccommands_legacy(
-        self,
-        ctx: commands.Context,
-        clear_guild: bool = False,
-    ) -> None:
-        if not await check_level(ctx, LEVEL_OWNER):
-            return
-
-        try:
-            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
-                await ctx.interaction.response.defer(ephemeral=True)
-
-            result = await perform_command_sync(
-                self.bot,
-                clear_guild=clear_guild,
-            )
-
-            if getattr(ctx, "interaction", None):
-                await ctx.interaction.followup.send(
-                    embed=success_embed(
-                        "Commands Synced",
-                        result,
-                    ),
-                    ephemeral=True,
-                )
-            else:
-                await respond(
-                    ctx,
-                    embed=success_embed(
-                        "Commands Synced",
-                        result,
-                    ),
-                    ephemeral=True,
-                )
-
-        except Exception as exc:
-            await respond(
-                ctx,
-                embed=warning_embed(
-                    "Sync Failed",
-                    str(exc),
-                ),
-                ephemeral=True,
-            )
-
-
-async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(OwnerCommands(bot))
-    await bot.add_cog(LegacySyncCommands(bot))
