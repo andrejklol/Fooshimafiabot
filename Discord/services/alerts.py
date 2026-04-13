@@ -71,7 +71,7 @@ async def send_alert(
 
 
 # ============================================================
-# STATUS PRIORITY
+# REPEAT ALERT HELPERS
 # ============================================================
 
 def get_member_status_rank(status: discord.Status) -> int:
@@ -84,28 +84,7 @@ def get_member_status_rank(status: discord.Status) -> int:
     return 0
 
 
-# ============================================================
-# CONFIG NORMALIZATION
-# ============================================================
-
 def normalize_staff_entries(rank_entries):
-    """
-    Supports BOTH config styles:
-
-    OLD:
-        ("Fooshi Capo", [123, 456])
-
-    NEW:
-        (
-            "Fooshi Capo",
-            [
-                {
-                    "discord_id": 123,
-                    "vrchat_user_id": "usr_xxx"
-                }
-            ]
-        )
-    """
     normalized = []
 
     for entry in rank_entries:
@@ -129,10 +108,6 @@ def normalize_staff_entries(rank_entries):
     return normalized
 
 
-# ============================================================
-# VRCHAT AVAILABILITY CHECK
-# ============================================================
-
 async def is_available_for_alert(
     member: discord.Member,
     vrchat_username: str | None,
@@ -145,7 +120,6 @@ async def is_available_for_alert(
     vrchat_user_id = str(vrchat_user_id or "").strip() or None
 
     if not vrchat_username and not vrchat_user_id:
-        print(f"[repeat-alert] skip {member} -> no VRChat identity configured")
         return False
 
     try:
@@ -153,24 +127,11 @@ async def is_available_for_alert(
             vrchat_username=vrchat_username,
             vrchat_user_id=vrchat_user_id,
         )
-
-        print(
-            f"[repeat-alert] {member} | "
-            f"username={vrchat_username} | "
-            f"id={vrchat_user_id} | "
-            f"online={online}"
-        )
-
         return online
 
     except Exception as exc:
-        print(
-            f"[repeat-alert] error checking {member}: "
-            f"{type(exc).__name__}: {exc}"
-        )
-
         await send_error_log(
-            "Alert Availability Check Error",
+            "Repeat Alert VRChat Check Error",
             exc,
             extra={
                 "member": str(member),
@@ -180,10 +141,6 @@ async def is_available_for_alert(
         )
         return False
 
-
-# ============================================================
-# PICK STAFF MEMBER
-# ============================================================
 
 async def pick_alert_user_for_action(
     action_type: str,
@@ -203,22 +160,17 @@ async def pick_alert_user_for_action(
 
         if guild is None:
             await send_error_log(
-                "Alert Guild Missing",
-                f"Could not find guild {GUILD_ID}",
-                extra=f"action_type={action_type}",
+                "Repeat Alert Guild Missing",
+                f"GUILD_ID not found: {GUILD_ID}",
             )
             return None, None, None
 
         rank_groups = STAFF_ALERT_ORDER.get(action_type, [])
-
         if not rank_groups:
             return None, None, None
 
         for index in range(start_index, len(rank_groups)):
             rank_name, raw_entries = rank_groups[index]
-
-            print(f"[repeat-alert] checking rank: {rank_name}")
-
             entries = normalize_staff_entries(raw_entries)
             candidates = []
 
@@ -226,13 +178,6 @@ async def pick_alert_user_for_action(
                 discord_id = entry["discord_id"]
                 vrchat_username = entry["vrchat_username"]
                 vrchat_user_id = entry["vrchat_user_id"]
-
-                print(
-                    "[repeat-alert] candidate -> "
-                    f"discord_id={discord_id} "
-                    f"vrchat_username={vrchat_username} "
-                    f"vrchat_user_id={vrchat_user_id}"
-                )
 
                 if not discord_id:
                     continue
@@ -246,7 +191,6 @@ async def pick_alert_user_for_action(
                         member = None
 
                 if member is None:
-                    print(f"[repeat-alert] discord member not found: {discord_id}")
                     continue
 
                 if await is_available_for_alert(
@@ -261,27 +205,19 @@ async def pick_alert_user_for_action(
                     key=lambda m: get_member_status_rank(m.status),
                     reverse=True,
                 )
-
                 chosen = candidates[0]
-
-                print(f"[repeat-alert] selected {chosen} from rank {rank_name}")
                 return chosen, rank_name, index
 
-        print("[repeat-alert] no online staff found")
         return None, None, None
 
     except Exception as exc:
         await send_error_log(
-            "Pick Alert User Error",
+            "Repeat Alert Pick Staff Error",
             exc,
-            extra=f"action_type={action_type} | start_index={start_index}",
+            extra=f"action_type={action_type}",
         )
         return None, None, None
 
-
-# ============================================================
-# REPEAT ALERT EMBED BUILDER
-# ============================================================
 
 def build_repeat_alert_embed(
     pretty_name: str,
@@ -314,7 +250,7 @@ def build_repeat_alert_embed(
         name="Recent Actions",
         value="\n".join(
             f"{action.upper()} x{count} ({window}d)"
-            for action, count, window, _threshold in triggered
+            for action, count, window, _ in triggered
         ),
         inline=False,
     )
@@ -334,16 +270,16 @@ def build_repeat_alert_embed(
     else:
         embed.add_field(
             name="Assigned To",
-            value="No linked staff online in VRChat",
+            value="No staff currently online in VRChat",
             inline=False,
         )
 
-    embed.set_footer(text="Only pings staff who are online in VRChat")
+    embed.set_footer(text="Only pings staff currently online in VRChat")
     return embed
 
 
 # ============================================================
-# REPEAT ALERT BUTTON VIEW
+# REPEAT ALERT VIEW
 # ============================================================
 
 class RepeatOffenderView(discord.ui.View):
@@ -359,7 +295,7 @@ class RepeatOffenderView(discord.ui.View):
         self.current_rank_index = current_rank_index
 
     @discord.ui.button(
-        label="I handled this",
+        label="Handled",
         style=discord.ButtonStyle.success,
         emoji="✅",
     )
@@ -384,15 +320,12 @@ class RepeatOffenderView(discord.ui.View):
         embed.color = discord.Color.green()
 
         existing_fields = [field.name for field in embed.fields]
-
         if "Handled By" not in existing_fields:
             embed.add_field(
                 name="Handled By",
                 value=interaction.user.mention,
                 inline=False,
             )
-
-        embed.set_footer(text="Handled")
 
         for child in self.children:
             child.disabled = True
@@ -403,9 +336,9 @@ class RepeatOffenderView(discord.ui.View):
         )
 
     @discord.ui.button(
-        label="Move to higher rank",
+        label="Escalate",
         style=discord.ButtonStyle.danger,
-        emoji="❌",
+        emoji="⬆",
     )
     async def escalate_button(
         self,
@@ -425,39 +358,32 @@ class RepeatOffenderView(discord.ui.View):
             )
             return
 
-        next_start_index = 0
-
-        if self.current_rank_index is not None:
-            next_start_index = self.current_rank_index + 1
-
-        next_member, next_rank, next_rank_index = await pick_alert_user_for_action(
-            self.highest_action,
-            start_index=next_start_index,
+        next_index = (
+            self.current_rank_index + 1
+            if self.current_rank_index is not None
+            else 0
         )
 
-        if next_member is None:
+        member, rank, new_index = await pick_alert_user_for_action(
+            self.highest_action,
+            start_index=next_index,
+        )
+
+        if member is None:
             await interaction.response.send_message(
-                "No higher-rank staff member is currently online in VRChat.",
+                "No higher rank staff online",
                 ephemeral=True,
             )
             return
 
-        self.current_rank_index = next_rank_index
+        self.current_rank_index = new_index
         embed.color = discord.Color.red()
 
         embed.add_field(
-            name="Escalated By",
-            value=interaction.user.mention,
-            inline=False,
-        )
-
-        embed.add_field(
             name="Escalated To",
-            value=f"{next_member.mention} ({next_rank})",
+            value=f"{member.mention} ({rank})",
             inline=False,
         )
-
-        embed.set_footer(text="Escalated to higher rank")
 
         await interaction.response.edit_message(
             embed=embed,
@@ -465,7 +391,7 @@ class RepeatOffenderView(discord.ui.View):
         )
 
         await interaction.followup.send(
-            content=next_member.mention,
+            member.mention,
             allowed_mentions=discord.AllowedMentions(users=True),
         )
 
@@ -522,49 +448,41 @@ async def send_repeat_alert(
         if channel is None:
             await send_error_log(
                 "Repeat Alert Channel Missing",
-                f"Could not find REPEAT_ALERT_CHANNEL_ID {REPEAT_ALERT_CHANNEL_ID}",
-                extra=f"target_id={target_id} | highest_action={highest_action}",
+                f"Missing channel {REPEAT_ALERT_CHANNEL_ID}",
             )
             return
 
-        assigned_member, assigned_rank, assigned_rank_index = await pick_alert_user_for_action(
+        assigned_member, assigned_rank, rank_index = await pick_alert_user_for_action(
             highest_action
         )
 
         embed = build_repeat_alert_embed(
-            pretty_name=pretty_name,
-            target_id=target_id,
-            triggered=triggered,
-            highest_action=highest_action,
-            assigned_member=assigned_member,
-            assigned_rank=assigned_rank,
+            pretty_name,
+            target_id,
+            triggered,
+            highest_action,
+            assigned_member,
+            assigned_rank,
         )
 
-        content = assigned_member.mention if assigned_member else None
-        allowed_mentions = discord.AllowedMentions(users=True)
-
         view = RepeatOffenderView(
-            target_id=target_id,
-            highest_action=highest_action,
-            current_rank_index=assigned_rank_index,
+            target_id,
+            highest_action,
+            rank_index,
         )
 
         await channel.send(
-            content=content,
+            content=assigned_member.mention if assigned_member else None,
             embed=embed,
             view=view,
-            allowed_mentions=allowed_mentions,
+            allowed_mentions=discord.AllowedMentions(users=True),
         )
 
     except Exception as exc:
         await send_error_log(
-            "Send Repeat Alert Error",
+            "Repeat Alert Send Error",
             exc,
-            extra=(
-                f"pretty_name={pretty_name} | "
-                f"target_id={target_id} | "
-                f"highest_action={highest_action}"
-            ),
+            extra=f"{pretty_name} ({target_id})",
         )
 
 
