@@ -98,25 +98,14 @@ REPEAT_BAN_WINDOW_DAYS = int(os.getenv("REPEAT_BAN_WINDOW_DAYS", "30"))
 VRC_STAFF_ROLE_NAMES = {
 
     "godfooshi",
-    "god fooshi",
 
     "fooshi underboss",
 
     "fooshi consigliere",
-    "fooshi consiglieri",
 
     "fooshi capo",
-    "fooshi capos",
 
     "fooshi soldier",
-    "fooshi soldiers",
-
-    "consigliere",
-    "consiglieri",
-    "capo",
-    "capos",
-    "soldier",
-    "soldiers",
 }
 
 # ============================================================
