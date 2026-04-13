@@ -14,11 +14,8 @@ from .permissions import check_level, LEVEL_SOLDIER
 _VALID_SCOPES = ["overall", "monthly"]
 
 
-class GeneralCommands(
-    commands.GroupCog,
-    group_name="general",
-    group_description="General bot commands",
-):
+class GeneralCommands(commands.Cog):
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -56,18 +53,12 @@ class GeneralCommands(
     # LEADERBOARD
     # ============================================================
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="leaderboard",
         description="Show moderation leaderboard",
     )
     @app_commands.describe(scope="overall or monthly")
-    async def leaderboard(
-        self,
-        interaction: discord.Interaction,
-        scope: str = "overall",
-    ) -> None:
-        ctx = await commands.Context.from_interaction(interaction)
-
+    async def leaderboard(self, ctx: commands.Context, scope: str = "overall") -> None:
         if not await check_level(ctx, LEVEL_SOLDIER):
             await respond(
                 ctx,
