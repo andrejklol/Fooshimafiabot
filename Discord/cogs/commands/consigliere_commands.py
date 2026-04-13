@@ -14,6 +14,8 @@ from services.vrchat_client import (
     refresh_vrc_group_members,
 )
 
+from .permissions import check_level, LEVEL_CONSIGLIERE
+
 
 class ConsigliereCommands(commands.Cog):
 
@@ -28,7 +30,7 @@ class ConsigliereCommands(commands.Cog):
         if len(text) <= limit:
             return [text]
 
-        parts = []
+        parts: list[str] = []
         current = ""
 
         for line in text.splitlines():
@@ -46,8 +48,9 @@ class ConsigliereCommands(commands.Cog):
 
         return parts
 
-    def _get_archive(self):
-        return leaderboard_data.get("archive", {})
+    def _get_archive(self) -> dict:
+        data = leaderboard_data.get("archive", {})
+        return data if isinstance(data, dict) else {}
 
     async def _run_refresh_vrc_members(self) -> tuple[int, int, int, int]:
         await refresh_vrc_group_members(force=True)
@@ -69,8 +72,22 @@ class ConsigliereCommands(commands.Cog):
         name="refreshvrcmembers",
         description="Refresh cached VRChat group members and roles",
     )
-    async def refreshvrcmembers(self, ctx: commands.Context):
+    async def refreshvrcmembers(self, ctx: commands.Context) -> None:
+        if not await check_level(ctx, LEVEL_CONSIGLIERE):
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Permission Denied",
+                    "You do not have permission to use this command.",
+                ),
+                ephemeral=True,
+            )
+            return
+
         try:
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
+
             member_count, role_count, staff_count, synced_count = (
                 await self._run_refresh_vrc_members()
             )
@@ -84,18 +101,30 @@ class ConsigliereCommands(commands.Cog):
                 ]
             )
 
-            await respond(
-                ctx,
-                embed=success_embed("VRChat Members Refreshed", description),
-                ephemeral=True,
-            )
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=success_embed("VRChat Members Refreshed", description),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=success_embed("VRChat Members Refreshed", description),
+                    ephemeral=True,
+                )
 
         except Exception as exc:
-            await respond(
-                ctx,
-                embed=warning_embed("Refresh Failed", str(exc)),
-                ephemeral=True,
-            )
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=warning_embed("Refresh Failed", str(exc)),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=warning_embed("Refresh Failed", str(exc)),
+                    ephemeral=True,
+                )
 
     # ============================================================
     # STAFF STATUS
@@ -105,7 +134,18 @@ class ConsigliereCommands(commands.Cog):
         name="staffstatus",
         description="Show VRChat online status of staff",
     )
-    async def staffstatus(self, ctx: commands.Context):
+    async def staffstatus(self, ctx: commands.Context) -> None:
+        if not await check_level(ctx, LEVEL_CONSIGLIERE):
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Permission Denied",
+                    "You do not have permission to use this command.",
+                ),
+                ephemeral=True,
+            )
+            return
+
         guild = self.bot.get_guild(GUILD_ID)
 
         if not guild:
@@ -113,45 +153,79 @@ class ConsigliereCommands(commands.Cog):
                 ctx,
                 embed=warning_embed(
                     "Guild Missing",
-                    "Bot could not find guild",
+                    "Bot could not find guild.",
                 ),
                 ephemeral=True,
             )
             return
 
-        lines = []
+        try:
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
 
-        for action, groups in STAFF_ALERT_ORDER.items():
-            lines.append(f"## {action}")
+            lines: list[str] = []
 
-            for rank_name, members in groups:
-                lines.append(f"**{rank_name}**")
+            for action, groups in STAFF_ALERT_ORDER.items():
+                lines.append(f"## {action}")
 
-                for entry in members:
-                    member = guild.get_member(entry["discord_id"])
+                for rank_name, members in groups:
+                    lines.append(f"**{rank_name}**")
 
-                    online, _, status = await get_vrchat_user_status(
-                        vrchat_username=entry.get("vrchat_username"),
-                        vrchat_user_id=entry.get("vrchat_user_id"),
+                    for entry in members:
+                        member = guild.get_member(entry["discord_id"])
+
+                        online, _, status = await get_vrchat_user_status(
+                            vrchat_username=entry.get("vrchat_username"),
+                            vrchat_user_id=entry.get("vrchat_user_id"),
+                        )
+
+                        name = member.display_name if member else "Unknown"
+
+                        lines.append(
+                            f"- {name} | {status} | {'ONLINE' if online else 'OFFLINE'}"
+                        )
+
+            chunks = self._chunk("\n".join(lines))
+
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=info_embed(
+                        "Staff VRChat Status",
+                        "Shows who the bot thinks is online.",
+                    ),
+                    ephemeral=True,
+                )
+
+                for chunk in chunks:
+                    await ctx.interaction.followup.send(
+                        f"```\n{chunk}\n```",
+                        ephemeral=True,
                     )
+            else:
+                await respond(
+                    ctx,
+                    embed=info_embed(
+                        "Staff VRChat Status",
+                        "Shows who the bot thinks is online.",
+                    ),
+                    ephemeral=True,
+                )
 
-                    name = member.display_name if member else "Unknown"
+                for chunk in chunks:
+                    await ctx.send(f"```\n{chunk}\n```")
 
-                    lines.append(
-                        f"- {name} | {status} | {'ONLINE' if online else 'OFFLINE'}"
-                    )
-
-        chunks = self._chunk("\n".join(lines))
-
-        embed = info_embed(
-            "Staff VRChat Status",
-            "Shows who the bot thinks is online.",
-        )
-
-        await respond(ctx, embed=embed, ephemeral=True)
-
-        for c in chunks:
-            await ctx.send(f"```\n{c}\n```")
+        except Exception as exc:
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=warning_embed("Staff Status Failed", str(exc)),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=warning_embed("Staff Status Failed", str(exc)),
+                    ephemeral=True,
+                )
 
     # ============================================================
     # ARCHIVED STAFF RECORD
@@ -161,7 +235,18 @@ class ConsigliereCommands(commands.Cog):
         name="staffrecordarchived",
         description="View archived staff record",
     )
-    async def staffrecordarchived(self, ctx: commands.Context, staff: str):
+    async def staffrecordarchived(self, ctx: commands.Context, staff: str) -> None:
+        if not await check_level(ctx, LEVEL_CONSIGLIERE):
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Permission Denied",
+                    "You do not have permission to use this command.",
+                ),
+                ephemeral=True,
+            )
+            return
+
         archive = self._get_archive()
         record = archive.get(staff)
 
@@ -170,7 +255,7 @@ class ConsigliereCommands(commands.Cog):
                 ctx,
                 embed=warning_embed(
                     "Not Found",
-                    "No archived record found",
+                    "No archived record found.",
                 ),
                 ephemeral=True,
             )
@@ -186,5 +271,5 @@ class ConsigliereCommands(commands.Cog):
         await respond(ctx, embed=embed, ephemeral=True)
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ConsigliereCommands(bot))
