@@ -121,7 +121,7 @@ def _track_repeat_target(
 async def _maybe_send_suspicious_unique_target_alert(
     *,
     moderator_name: str,
-    vrchat_user_id: str | None,
+    discord_user_id: str | None,
     unique_target_count: int,
     cooldowns: dict,
 ) -> None:
@@ -142,11 +142,11 @@ async def _maybe_send_suspicious_unique_target_alert(
     await send_high_staff_alert(
         bot=app_state.bot,
         moderator_name=moderator_name,
-        action_type="suspicious_unique_targets",
+        action_type="unique_targets",
         count=unique_target_count,
         window_minutes=SUSPICIOUS_UNIQUE_TARGET_WINDOW_MINUTES,
         threshold=SUSPICIOUS_UNIQUE_TARGET_THRESHOLD,
-        vrchat_user_id=vrchat_user_id,
+        discord_user_id=discord_user_id,
     )
 
     log.warning(
@@ -161,7 +161,7 @@ async def _maybe_send_suspicious_unique_target_alert(
 async def _maybe_send_suspicious_repeat_target_alert(
     *,
     moderator_name: str,
-    vrchat_user_id: str | None,
+    discord_user_id: str | None,
     target_id: str,
     repeat_target_count: int,
     cooldowns: dict,
@@ -184,11 +184,11 @@ async def _maybe_send_suspicious_repeat_target_alert(
     await send_high_staff_alert(
         bot=app_state.bot,
         moderator_name=moderator_name,
-        action_type=f"suspicious_repeat_target ({target_id})",
+        action_type=f"repeat_target:{target_id}",
         count=repeat_target_count,
         window_minutes=SUSPICIOUS_REPEAT_TARGET_WINDOW_MINUTES,
         threshold=SUSPICIOUS_REPEAT_TARGET_THRESHOLD,
-        vrchat_user_id=vrchat_user_id,
+        discord_user_id=discord_user_id,
     )
 
     log.warning(
@@ -208,7 +208,7 @@ async def _maybe_send_suspicious_repeat_target_alert(
 async def track_high_staff_action(
     moderator_name: str,
     action_type: str,
-    vrchat_user_id: str | None = None,
+    discord_user_id: str | None = None,
     target_id: str | None = None,
     target_name: str | None = None,
 ) -> None:
@@ -217,6 +217,7 @@ async def track_high_staff_action(
 
     moderator_name = str(moderator_name or "").strip() or "Unknown"
     action_type = str(action_type or "").strip().lower()
+    discord_user_id = str(discord_user_id or "").strip() or None
     target_id = str(target_id or "").strip() or None
     target_name = str(target_name or "").strip() or None
 
@@ -266,7 +267,7 @@ async def track_high_staff_action(
                 count=count,
                 window_minutes=window_minutes,
                 threshold=threshold,
-                vrchat_user_id=vrchat_user_id,
+                discord_user_id=discord_user_id,
             )
 
             log.warning(
@@ -289,14 +290,14 @@ async def track_high_staff_action(
 
     await _maybe_send_suspicious_unique_target_alert(
         moderator_name=moderator_name,
-        vrchat_user_id=vrchat_user_id,
+        discord_user_id=discord_user_id,
         unique_target_count=unique_target_count,
         cooldowns=cooldowns,
     )
 
     await _maybe_send_suspicious_repeat_target_alert(
         moderator_name=moderator_name,
-        vrchat_user_id=vrchat_user_id,
+        discord_user_id=discord_user_id,
         target_id=target_name or target_id,
         repeat_target_count=repeat_target_count,
         cooldowns=cooldowns,
