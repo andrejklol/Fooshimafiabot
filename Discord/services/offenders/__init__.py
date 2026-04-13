@@ -1,10 +1,12 @@
-from .repeat_offender_alert import send_repeat_alert
+from .alerts import send_repeat_alert
 
 from .tracking import (
     add_warn,
     add_kick,
     add_ban,
     is_repeat_offender,
+    get_triggered_thresholds,
+    get_highest_action,
 )
 
 from .storage import (
