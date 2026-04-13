@@ -23,7 +23,6 @@ LEVEL_USER = 0
 # ============================================================
 
 ROLE_LEVEL_MAP = {
-
     # owner
     "godfooshi": LEVEL_OWNER,
 
@@ -60,17 +59,13 @@ LEVEL_NAMES = {
 # ============================================================
 
 def get_level(member: discord.Member) -> int:
-
     roles = [r.name.lower() for r in getattr(member, "roles", [])]
 
     highest_level = LEVEL_USER
 
     for user_role in roles:
-
         for role_name, level in ROLE_LEVEL_MAP.items():
-
             if role_name in user_role:
-
                 highest_level = max(highest_level, level)
 
     return highest_level
@@ -81,7 +76,6 @@ def get_level(member: discord.Member) -> int:
 # ============================================================
 
 async def check_level(ctx: commands.Context, required_level: int) -> bool:
-
     actual_level = get_level(ctx.author)
 
     required_name = LEVEL_NAMES.get(required_level, str(required_level))
@@ -90,13 +84,13 @@ async def check_level(ctx: commands.Context, required_level: int) -> bool:
     allowed = actual_level >= required_level
 
     guild_name = ctx.guild.name if ctx.guild else "DM"
-    channel_name = ctx.channel.name if ctx.guild else "DM"
+    channel_name = getattr(ctx.channel, "name", "DM") if ctx.guild else "DM"
 
     log.info(
         "[PERM] user=%s (%s) | command=%s | required=%s | actual=%s | allowed=%s | guild=%s | channel=%s",
         ctx.author,
         ctx.author.id,
-        ctx.command.name,
+        ctx.command.name if ctx.command else "unknown",
         required_name,
         actual_name,
         allowed,
@@ -104,4 +98,27 @@ async def check_level(ctx: commands.Context, required_level: int) -> bool:
         channel_name,
     )
 
-    return allowed
+    if not allowed:
+        try:
+            if getattr(ctx, "interaction", None):
+                if not ctx.interaction.response.is_done():
+                    await ctx.interaction.response.send_message(
+                        f"❌ You need **{required_name}** rank to use this command.",
+                        ephemeral=True,
+                    )
+                else:
+                    await ctx.interaction.followup.send(
+                        f"❌ You need **{required_name}** rank to use this command.",
+                        ephemeral=True,
+                    )
+            else:
+                await ctx.reply(
+                    f"❌ You need **{required_name}** rank to use this command.",
+                    delete_after=10,
+                )
+        except Exception:
+            pass
+
+        return False
+
+    return True
