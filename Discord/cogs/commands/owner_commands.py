@@ -48,14 +48,13 @@ async def perform_command_sync(bot: commands.Bot, clear_guild: bool = False) -> 
         await bot.tree.sync(guild=guild)
 
     bot.tree.copy_global_to(guild=guild)
-
     synced = await bot.tree.sync(guild=guild)
 
     return f"Guild synced {len(synced)} commands."
 
 
 # ============================================================
-# OWNER COMMANDS
+# OWNER GROUP COMMANDS
 # ============================================================
 
 class OwnerCommands(
@@ -179,7 +178,7 @@ class OwnerCommands(
                 )
 
     # ============================================================
-    # SYNC COMMANDS
+    # NEW GROUPED SYNC COMMAND
     # ============================================================
 
     @app_commands.command(
@@ -353,5 +352,66 @@ class OwnerCommands(
         )
 
 
+# ============================================================
+# TEMP LEGACY TOP-LEVEL SYNC COG
+# lets /synccommands work one last time
+# ============================================================
+
+class LegacySyncCommands(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    @commands.hybrid_command(
+        name="synccommands",
+        description="Sync slash commands",
+    )
+    @app_commands.describe(clear_guild="Clear guild commands first")
+    async def synccommands_legacy(
+        self,
+        ctx: commands.Context,
+        clear_guild: bool = False,
+    ) -> None:
+        if not await check_level(ctx, LEVEL_OWNER):
+            return
+
+        try:
+            if getattr(ctx, "interaction", None) and not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer(ephemeral=True)
+
+            result = await perform_command_sync(
+                self.bot,
+                clear_guild=clear_guild,
+            )
+
+            if getattr(ctx, "interaction", None):
+                await ctx.interaction.followup.send(
+                    embed=success_embed(
+                        "Commands Synced",
+                        result,
+                    ),
+                    ephemeral=True,
+                )
+            else:
+                await respond(
+                    ctx,
+                    embed=success_embed(
+                        "Commands Synced",
+                        result,
+                    ),
+                    ephemeral=True,
+                )
+
+        except Exception as exc:
+            await respond(
+                ctx,
+                embed=warning_embed(
+                    "Sync Failed",
+                    str(exc),
+                ),
+                ephemeral=True,
+            )
+
+
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(OwnerCommands(bot))
+    await bot.add_cog(LegacySyncCommands(bot))
