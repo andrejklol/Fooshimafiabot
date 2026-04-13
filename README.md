@@ -152,18 +152,22 @@ Uses async locking to prevent corruption.
 
 ## Permission System
 
-Role-based permission hierarchy aligned with mafia rank structure.
+Role-based permission hierarchy aligned with the Fooshi Mafia rank structure.
 
-Rank Levels:
+Commands are restricted based on staff level to ensure proper access control.
 
-Godfooshi — Owner
-Underboss — Admin
-Consigliere — High Staff
-Capo — Moderator
-Soldier — Staff
-Associate — Member
+### Rank Levels
 
-Commands are restricted based on permission level.
+| Rank | Permission Level | Description |
+|------|-----------------|-------------|
+| **Godfooshi** | Owner | Full access to all bot commands and configuration |
+| **Underboss** | Admin | Administrative commands and system management |
+| **Consigliere** | High Staff | Advanced moderation and oversight tools |
+| **Capo** | Moderator | Standard moderation commands |
+| **Soldier** | Staff | Basic staff commands and tracking access |
+| **Associate** | Member | No staff permissions |
+
+The bot automatically determines permission level based on staff roles synced from VRChat and Discord.
 
 ---
 
