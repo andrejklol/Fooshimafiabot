@@ -1297,7 +1297,7 @@ class Commands(commands.Cog):
             await send_error_log("Archived Staff Record Autocomplete Error", exc)
             return []
 
-    @leaderboard.autocomplete("scope")    @leaderboard.autocomplete("scope")
+    @leaderboard.autocomplete("scope")
     async def leaderboard_scope_autocomplete(
         self,
         interaction: discord.Interaction,
