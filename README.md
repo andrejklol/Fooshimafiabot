@@ -1,202 +1,293 @@
+---
+
 # Fooshi Mafia Staff Bot
 
-Advanced Discord + VRChat moderation and staff tracking bot designed for structured communities, events, and staff performance monitoring.
+Advanced **Discord + VRChat moderation and staff performance tracking bot** designed for structured communities, events, and staff management.
 
-Built for the Fooshi Mafia VRChat group to automate moderation tracking, leaderboards, repeat offender detection, and real-time staff syncing.
+Built specifically for the **Fooshi Mafia VRChat group** to automate moderation tracking, leaderboards, repeat offender detection, and real-time staff syncing.
 
 ---
 
-## Features
+# Features
 
-### Staff Activity Tracking
-Automatically tracks moderation actions from VRChat audit logs.
+## Staff Activity Tracking
+
+Automatically tracks moderation actions using VRChat audit logs and system signals.
 
 Tracked actions:
-- Warns
-- Kicks
-- Bans
-- Invites
-- Invite Accepts
-- Points scoring system
 
-All activity is saved and persists between restarts.
-
----
-
-### Leaderboard System
-Ranks staff performance based on activity levels.
-
-Includes:
-- Overall leaderboard
-- Monthly leaderboard reset
-- Points scoring system
-- Individual staff stat lookup
-
-Commands:
-- /leaderboard
-- /staffrecord @user
-
----
-
-### Repeat Offender Detection
-Automatically tracks repeat offenders using configurable thresholds.
-
-Detects repeated:
-- warns
-- kicks
-- bans
-
-Triggers alerts when thresholds are exceeded to help staff identify problem users quickly.
-
----
-
-### VRChat Integration
-Direct connection to VRChat group APIs.
+* Warns
+* Kicks
+* Bans
+* Invites
+* Invite Accepts
+* Activity scoring system
 
 Features:
-- VRChat group member caching
-- Staff role syncing
-- Audit log processing
-- Invite tracking
-- Presence tracking signals
+
+* Persistent data storage
+* Automatic syncing with VRChat group members
+* Tracks staff performance over time
+* Prevents data loss between restarts
+
+---
+
+## Leaderboard System
+
+Ranks staff performance using an activity-based scoring system.
+
+Includes:
+
+* Global leaderboard
+* Monthly leaderboard reset
+* Individual staff statistics
+* Persistent score storage
+* Automatic staff syncing
+
+Commands:
+
+* `/leaderboard`
+* `/staffrecord @user`
+
+---
+
+## Repeat Offender Detection
+
+Automatically tracks users who repeatedly receive moderation actions.
+
+Detects repeated:
+
+* warns
+* kicks
+* bans
+
+Features:
+
+* Configurable thresholds
+* Time-based tracking windows
+* Automatic alerts for high-risk users
+* Persistent offender history
+* Integrated with leaderboard scoring
+
+Helps staff identify problematic users quickly and consistently.
+
+---
+
+## VRChat Integration
+
+Direct integration with VRChat group APIs.
+
+Features:
+
+* VRChat group member caching
+* Staff role synchronization
+* Audit log processing
+* Invite tracking
+* Presence signal collection
+* automatic staff detection
+* historical log loading support
 
 Tracks:
-- moderation actions
-- staff activity
-- invite acceptance
-- online presence indicators
+
+* moderation actions
+* staff activity
+* invite acceptance
+* group membership changes
 
 ---
 
-### Status Pipeline
-Advanced online detection system combining multiple signals.
+## Status Pipeline System
 
-Tier 1
-- websocket presence
-- friend presence
+Advanced online detection system combining multiple signals for accurate staff presence tracking.
 
-Tier 2
-- recent moderation activity
-- audit actor activity
+Signal tiers:
 
-Tier 3
-- VRChat user status when supported
+### Tier 1 (highest reliability)
 
-Provides reliable staff online visibility.
+* websocket presence
+* VRChat friend presence
+
+### Tier 2
+
+* recent moderation activity
+* audit log actor activity
+
+### Tier 3
+
+* VRChat user status
+* supported platform signals
+
+Pipeline logic prevents false positives by validating signals before marking users online.
+
+Provides reliable visibility of staff availability.
 
 ---
 
-### Permission System
-Role-based permission hierarchy based on mafia rank structure.
+## Staff Sync Protection
+
+Protects leaderboard data from accidental staff removal.
+
+Features:
+
+* Grace period before staff archive
+* Discord role override protection
+* Preserves staff history when roles change temporarily
+* Prevents data loss from VRChat sync changes
+
+---
+
+## Autosave System
+
+Automatically saves data when changes occur.
+
+Prevents:
+
+* leaderboard loss
+* repeat offender reset
+* unsaved moderation history
+
+Uses async locking to prevent corruption.
+
+---
+
+## Permission System
+
+Role-based permission hierarchy aligned with mafia rank structure.
 
 Rank Levels:
 
-Godfooshi — Owner  
-Underboss — Admin  
-Consigliere — High Staff  
-Capo — Moderator  
-Soldier — Staff  
-Associate — Member  
+Godfooshi — Owner
+Underboss — Admin
+Consigliere — High Staff
+Capo — Moderator
+Soldier — Staff
+Associate — Member
 
 Commands are restricted based on permission level.
 
 ---
 
-## Commands
+# Commands
 
-### Staff Commands
+## Staff Commands
 
-/leaderboard  
-Shows top performing staff.
+`/leaderboard`
+Displays top performing staff.
 
-/staffrecord @user  
-Shows individual staff statistics.
+`/staffrecord @user`
+Shows detailed staff statistics.
 
-/repeatstats  
-Shows repeat offender tracking stats.
+`/repeatstats`
+Displays repeat offender statistics.
 
 ---
 
-### Admin Commands
+## Admin Commands
 
-/synccommands  
-Force sync slash commands.
+`/synccommands`
+Force refresh slash commands.
 
-/refreshvrcmembers  
+`/refreshvrcmembers`
 Refresh VRChat group member cache.
 
-/resetvrcdata  
+`/resetvrcdata`
 Reset leaderboard and repeat offender data.
 
-/loadvrchistory  
-Load historical VRChat audit logs.
+`/loadvrchistory`
+Load historical VRChat moderation logs.
 
 ---
 
-### Utility Commands
+## Utility Commands
 
-/ping  
+`/ping`
 Check bot latency.
 
-/vrcstatus  
-Displays system health and connection status.
+`/vrcstatus`
+Displays VRChat connection and pipeline status.
 
 ---
 
-## Project Structure
+# Project Structure
 
+```
 Discord/
 
 cogs/
-- admin.py
-- commands.py
-- moderation.py
-- tasks_cog.py
+│ admin.py
+│ commands.py
+│ moderation.py
+│ tasks_cog.py
 
 core/
-- cache.py
-- config.py
-- embeds.py
-- logger.py
-- utils.py
+│ cache.py
+│ config.py
+│ embeds.py
+│ logger.py
+│ utils.py
+│ error_embed.py
 
 services/
-- alerts.py
-- leaderboard/
-- tasks.py
-- vrchat_client.py
-- status_pipeline.py
+│ alerts.py
+│ leaderboard/
+│ offenders/
+│ tasks.py
+│ vrchat_client.py
+│ status_pipeline.py
+
+data/
+│ leaderboard.json
+│ repeat_offenders.json
 
 main.py
+```
 
 ---
 
-## Installation
+# Installation
 
 Requirements:
-Python 3.11 or newer
+
+Python 3.11+
 
 Install dependencies:
 
+```
 pip install -r requirements.txt
+```
 
 ---
 
-## Running the Bot
+# Running the Bot
 
+```
 python Discord/main.py
+```
 
 ---
 
-## Credits
+# Data Storage
 
-Built for the Fooshi Mafia VRChat community.
+Runtime data is stored locally:
 
-Designed for scalable moderation tracking and staff performance management.
+```
+Discord/data/leaderboard.json
+Discord/data/repeat_offenders.json
+```
+
+These files are automatically created and updated by the bot.
 
 ---
 
-## License
+# Credits
+
+Built for the **Fooshi Mafia VRChat community**.
+
+Designed for scalable moderation tracking, staff monitoring, and automated performance analytics.
+
+---
+
+# License
 
 Private project.
 Not licensed for redistribution.
