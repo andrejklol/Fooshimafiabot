@@ -8,8 +8,11 @@ from core.utils import respond
 from .permissions import check_level, LEVEL_UNDERBOSS
 
 
-class UnderbossCommands(commands.Cog):
-
+class UnderbossCommands(
+    commands.GroupCog,
+    group_name="underboss",
+    group_description="Underboss commands",
+):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -17,11 +20,13 @@ class UnderbossCommands(commands.Cog):
     # TEST COMMAND
     # ============================================================
 
-    @commands.hybrid_command(
+    @app_commands.command(
         name="underboss_ping",
         description="Test command for underboss rank",
     )
-    async def underboss_ping(self, ctx: commands.Context) -> None:
+    async def underboss_ping(self, interaction: discord.Interaction) -> None:
+        ctx = await commands.Context.from_interaction(interaction)
+
         if not await check_level(ctx, LEVEL_UNDERBOSS):
             await respond(
                 ctx,
