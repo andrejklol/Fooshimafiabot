@@ -19,18 +19,24 @@ LEVEL_USER = 0
 
 # ============================================================
 # ROLE NAME → LEVEL
+# matches partial role names
 # ============================================================
 
 ROLE_LEVEL_MAP = {
-    "godfooshi": LEVEL_OWNER,
-    "owner": LEVEL_OWNER,
 
+    # owner
+    "godfooshi": LEVEL_OWNER,
+
+    # underboss
     "underboss": LEVEL_UNDERBOSS,
 
+    # consigliere
     "consigliere": LEVEL_CONSIGLIERE,
 
+    # capo
     "capo": LEVEL_CAPO,
 
+    # soldier
     "soldier": LEVEL_SOLDIER,
 }
 
@@ -59,10 +65,13 @@ def get_level(member: discord.Member) -> int:
 
     highest_level = LEVEL_USER
 
-    for role_name, level in ROLE_LEVEL_MAP.items():
+    for user_role in roles:
 
-        if role_name in roles:
-            highest_level = max(highest_level, level)
+        for role_name, level in ROLE_LEVEL_MAP.items():
+
+            if role_name in user_role:
+
+                highest_level = max(highest_level, level)
 
     return highest_level
 
