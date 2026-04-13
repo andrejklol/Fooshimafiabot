@@ -215,35 +215,73 @@ Displays VRChat connection and pipeline status.
 # Project Structure
 
 ```
+## Project Structure
+
 Discord/
 
 cogs/
-│ admin.py
-│ commands.py
-│ moderation.py
-│ tasks_cog.py
+│ commands/
+│ │ __init__.py
+│ │ capo_commands.py
+│ │ consigliere_commands.py
+│ │ general_commands.py
+│ │ owner_commands.py
+│ │ permissions.py
+│ │ underboss_commands.py
+│
+│ __init__.py
+│ error_handler.py
+│ general.py
+│ tasks.py
 
 core/
+│ __init__.py
 │ cache.py
 │ config.py
 │ embeds.py
+│ error_embed.py
 │ logger.py
 │ utils.py
-│ error_embed.py
-
-services/
-│ alerts.py
-│ leaderboard/
-│ offenders/
-│ tasks.py
-│ vrchat_client.py
-│ status_pipeline.py
 
 data/
-│ leaderboard.json
-│ repeat_offenders.json
+│ leaderboard.template.json
+
+services/
+│ leaderboard/
+│ │ __init__.py
+│ │ constants.py
+│ │ history_loader.py
+│ │ processors.py
+│ │ queries.py
+│ │ scoring.py
+│ │ service.py
+│ │ staff_sync.py
+│ │ storage.py
+│
+│ offenders/
+│ │ __init__.py
+│ │ alerts.py
+│ │ queries.py
+│ │ storage.py
+│ │ tracking.py
+│
+│ tasks/
+│ │ __init__.py
+│ │ autosave.py
+│ │ group_cache.py
+│ │ log_polling.py
+│ │ monthly_reset.py
+│
+│ discord_alerts.py
+│ repeat_offender_alert.py
+│ status_pipeline.py
+│ vrchat_client.py
 
 main.py
+
+.gitignore
+README.md
+requirements.txt
 ```
 
 ---
