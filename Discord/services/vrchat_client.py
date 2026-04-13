@@ -883,12 +883,19 @@ def get_cached_vrc_user_role_ids(user_id: str) -> list[str]:
 
 def is_cached_vrc_user_staff(user_id: str) -> bool:
     wanted = {str(x).strip().casefold() for x in VRC_STAFF_ROLE_NAMES}
-    staff_role_ids = {str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())}
+    staff_role_ids = {
+        str(x).strip()
+        for x in getattr(app_state, "vrchat_staff_role_ids", set())
+    }
 
     role_name_match = any(
-        str(role).strip().casefold() in wanted
+        any(
+            wanted_role in str(role).strip().casefold()
+            for wanted_role in wanted
+        )
         for role in get_cached_vrc_user_roles(user_id)
     )
+
     role_id_match = any(
         str(role_id).strip() in staff_role_ids
         for role_id in get_cached_vrc_user_role_ids(user_id)
@@ -938,7 +945,7 @@ async def get_pretty_vrc_name(entry) -> tuple[str, str]:
 
 # ============================================================
 # GROUP CACHE
-# ============================================================
+# =============================================================
 
 async def refresh_group_cache_once(force: bool = False) -> None:
     if not app_state.vrc_groups_api or vrchat_cooldown_active():
@@ -1027,7 +1034,10 @@ async def refresh_vrc_group_roles(force: bool = False) -> None:
                 staff_role_ids = {
                     role_id
                     for role_id, role_name in new_map.items()
-                    if str(role_name).strip().casefold() in role_names_lower
+                    if any(
+                        wanted_role in str(role_name).strip().casefold()
+                        for wanted_role in role_names_lower
+                    )
                 }
                 app_state.vrchat_staff_role_ids = staff_role_ids
             except Exception:
@@ -1181,12 +1191,12 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
                 old_role_ids = old_role_id_cache.get(user_id, [])
 
                 old_is_staff = any(
-                    str(role).strip().casefold() in wanted_roles
-                    for role in (old_roles or [])
-                ) or any(
-                    str(role_id).strip() in staff_role_ids
-                    for role_id in (old_role_ids or [])
-                )
+    any(wanted_role in str(role).strip().casefold() for wanted_role in wanted_roles)
+    for role in (old_roles or [])
+) or any(
+    str(role_id).strip() in staff_role_ids
+    for role_id in (old_role_ids or [])
+)
 
                 if old_is_staff:
                     new_role_cache[user_id] = list(old_roles or [])
@@ -1635,7 +1645,10 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
             if str(role_id).strip()
         ]
 
-        has_staff_role = any(role in wanted_roles for role in normalized_roles)
+        has_staff_role = any(
+    any(wanted in role for wanted in wanted_roles)
+    for role in normalized_roles
+)
         has_staff_role_id = any(role_id in staff_role_ids for role_id in normalized_role_ids)
 
         if not (has_staff_role or has_staff_role_id):
