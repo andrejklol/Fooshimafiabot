@@ -120,19 +120,16 @@ STAFF_ALERT_ORDER = {
             "Fooshi Soldier",
             [
 
-                # Finley
                 {
                     "discord_id": 388783101184180224,
                     "vrchat_user_id": "usr_8c95ece0-3e42-4b78-9036-5fc75aa5ca3c"
                 },
 
-                # Atabey
                 {
                     "discord_id": 924925123184717904,
                     "vrchat_user_id": "usr_83b26675-1275-446a-a587-57c66c968170"
                 },
 
-                # Daw3
                 {
                     "discord_id": 1344857878284075031,
                     "vrchat_user_id": "usr_3806653f-d199-475c-aca0-b17826d84964"
@@ -287,3 +284,40 @@ SYNC_COMMANDS_ON_STARTUP = os.getenv(
     "SYNC_COMMANDS_ON_STARTUP",
     "false"
 ).lower() == "true"
+
+
+# ============================================================
+# HIGH STAFF ALERT SETTINGS
+# ============================================================
+
+HIGH_STAFF_ALERT_ENABLED = os.getenv(
+    "HIGH_STAFF_ALERT_ENABLED",
+    "true"
+).lower() == "true"
+
+HIGH_STAFF_ALERT_CHANNEL_ID = int(
+    os.getenv(
+        "HIGH_STAFF_ALERT_CHANNEL_ID",
+        str(ALERT_CHANNEL_ID)
+    )
+)
+
+HIGH_STAFF_WARN_THRESHOLD = int(
+    os.getenv("HIGH_STAFF_WARN_THRESHOLD", "8")
+)
+
+HIGH_STAFF_KICK_THRESHOLD = int(
+    os.getenv("HIGH_STAFF_KICK_THRESHOLD", "5")
+)
+
+HIGH_STAFF_BAN_THRESHOLD = int(
+    os.getenv("HIGH_STAFF_BAN_THRESHOLD", "3")
+)
+
+HIGH_STAFF_WINDOW_MINUTES = int(
+    os.getenv("HIGH_STAFF_WINDOW_MINUTES", "10")
+)
+
+HIGH_STAFF_ALERT_COOLDOWN_MINUTES = int(
+    os.getenv("HIGH_STAFF_ALERT_COOLDOWN_MINUTES", "30")
+)
