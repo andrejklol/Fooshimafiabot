@@ -34,6 +34,7 @@ from core.utils import (
     vrchat_cooldown_active,
 )
 from services.offenders import send_repeat_alert
+from services.discord_alerts import send_alert
 from services.leaderboard.processors import sync_all_vrc_staff_into_leaderboard
 from services.leaderboard.queries import get_top_staff
 from services.leaderboard.scoring import build_score_footer
