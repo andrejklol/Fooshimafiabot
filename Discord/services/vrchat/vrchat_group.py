@@ -1,9 +1,13 @@
-from core.cache import app_state
+import asyncio
+import logging
 
-from . import (
-    GROUP_ID,
+from core.cache import app_state
+from core.config import GROUP_ID, VRC_STAFF_ROLE_NAMES
+from core.utils import vrchat_cooldown_active
+
+from .vrchat_auth import _ensure_vrc_sync_state, _run_vrc_api_call, _send_rate_limited_error
+from .vrchat_client import (
     GROUP_MEMBERS_PAGE_DELAY_SECONDS,
-    VRC_STAFF_ROLE_NAMES,
     _extract_group_id,
     _extract_group_name,
     _extract_member_display_name,
@@ -18,13 +22,9 @@ from . import (
     _normalize_vrc_user_id,
     _now_ts,
     _role_cache_is_stale,
-    _run_vrc_api_call,
-    _send_rate_limited_error,
-    _ensure_vrc_sync_state,
-    log,
-    vrchat_cooldown_active,
 )
-import asyncio
+
+log = logging.getLogger("vrchat_group")
 
 
 # ============================================================
@@ -502,3 +502,18 @@ async def get_all_vrc_staff_members(force_refresh: bool = False) -> list[dict]:
 
     log.info("VRC staff sync found %s staff members", len(results))
     return results
+
+
+__all__ = [
+    "ensure_vrc_group_cache_ready",
+    "get_all_vrc_staff_members",
+    "get_cached_vrc_user_role_ids",
+    "get_cached_vrc_user_roles",
+    "get_pretty_vrc_name",
+    "is_cached_vrc_user_staff",
+    "refresh_group_cache_once",
+    "refresh_vrc_group_members",
+    "refresh_vrc_group_roles",
+    "resolve_vrchat_user_id",
+    "vrc_user_is_staff",
+]
