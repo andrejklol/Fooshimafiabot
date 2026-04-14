@@ -1,18 +1,27 @@
 import asyncio
 import json
 import logging
-import time
 from http.cookies import SimpleCookie
-from typing import Any
 from urllib.parse import quote
 
 import websockets
 
 from core.cache import app_state
-from core.utils import vrchat_cooldown_active
-from services.vrchat.status_pipeline import process_user_status
+from core.utils import send_error_log, vrchat_cooldown_active
 
-from .vrchat_auth import _ensure_pipeline_state, _ensure_recent_activity_state, _run_vrc_api_call
+from .status_pipeline import process_user_status
+from .vrchat_auth import (
+    _ensure_pipeline_state,
+    _ensure_recent_activity_state,
+    _run_vrc_api_call,
+)
+from .vrchat_client import (
+    _USER_AGENT,
+    _normalize_status_value,
+    _normalize_vrc_name,
+    _normalize_vrc_user_id,
+    _now_ts,
+)
 from .vrchat_group import (
     _member_cache_is_stale,
     ensure_vrc_group_cache_ready,
@@ -20,8 +29,6 @@ from .vrchat_group import (
 )
 
 log = logging.getLogger("vrchat_presence")
-
-_USER_AGENT = "FooshiMafiaBot/1.3 (contact: fooshimafia@gmail.com)"
 
 AMBIGUOUS_STATUS_RECHECK_SECONDS = 6
 
@@ -34,30 +41,17 @@ FRIEND_PRESENCE_CACHE_SECONDS = 90
 
 
 # ============================================================
-# BASIC HELPERS
+# CACHE STALENESS
 # ============================================================
-
-def _now_ts() -> float:
-    return time.time()
-
-
-def _normalize_vrc_name(value: str | None) -> str:
-    return (value or "").strip().casefold()
-
-
-def _normalize_vrc_user_id(value: str | None) -> str | None:
-    cleaned = str(value or "").strip()
-    return cleaned or None
-
-
-def _normalize_status_value(value: Any) -> str:
-    return str(value or "").strip().lower()
-
 
 def _pipeline_cache_is_stale() -> bool:
     last = float(getattr(app_state, "vrc_pipeline_last_event_ts", 0.0) or 0.0)
     return last <= 0 or (_now_ts() - last) >= PIPELINE_STALE_SECONDS
 
+
+# ============================================================
+# COOKIE EXTRACTION / PIPELINE AUTH
+# ============================================================
 
 def _extract_auth_cookie_from_client() -> str | None:
     client = getattr(app_state, "vrc_client", None)
@@ -780,8 +774,6 @@ async def get_vrchat_user_status(
             exc,
         )
 
-        from core.utils import send_error_log
-
         await send_error_log(
             "VRChat User Status Error",
             f"user={user_label} | {type(exc).__name__}: {exc}",
@@ -848,5 +840,6 @@ __all__ = [
     "mark_vrc_user_recently_active",
     "resolve_vrchat_user_id",
     "stop_pipeline_listener",
+    "_extract_auth_cookie_from_client",
     "_refresh_friend_presence_cache",
 ]
