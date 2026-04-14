@@ -10,11 +10,14 @@ from vrchatapi.models.two_factor_email_code import TwoFactorEmailCode
 
 from core.cache import app_state
 from core.config import VRCHAT_EMAIL_OTP, VRCHAT_PASSWORD, VRCHAT_USERNAME
-from core.utils import format_remaining_cooldown, run_blocking, send_error_log, vrchat_cooldown_active
+from core.utils import (
+    format_remaining_cooldown,
+    run_blocking,
+    send_error_log,
+    vrchat_cooldown_active,
+)
 
 log = logging.getLogger("vrchat_auth")
-
-_USER_AGENT = "FooshiMafiaBot/1.3 (contact: fooshimafia@gmail.com)"
 
 VRCHAT_API_RETRIES = 3
 VRCHAT_API_BASE_DELAY_SECONDS = 2.0
@@ -55,16 +58,20 @@ def _ensure_vrc_sync_state() -> None:
     _ensure_attr_default("vrc_group_roles_last_error_ts", 0.0)
     _ensure_attr_default("vrc_group_members_last_error_ts", 0.0)
     _ensure_attr_default("vrc_group_info_last_error_ts", 0.0)
+
     _ensure_attr_default("vrc_group_roles_refresh_lock", asyncio.Lock)
     _ensure_attr_default("vrc_group_members_refresh_lock", asyncio.Lock)
     _ensure_attr_default("vrc_group_info_refresh_lock", asyncio.Lock)
+
     _ensure_attr_default("group_cache", dict)
     _ensure_attr_default("vrc_group_info_last_refresh", 0.0)
     _ensure_attr_default("vrc_group_roles_last_refresh", 0.0)
     _ensure_attr_default("vrc_group_members_last_refresh", 0.0)
+
     _ensure_attr_default("vrc_group_role_map", dict)
     _ensure_attr_default("vrc_group_member_roles", dict)
     _ensure_attr_default("vrc_group_member_role_ids", dict)
+
     _ensure_attr_default("vrchat_staff_role_ids", set)
     _ensure_attr_default("vrchat_group_roles", dict)
     _ensure_attr_default("vrchat_group_members", dict)
@@ -194,6 +201,8 @@ def _finalise_login(api_client: ApiClient, auth_api: AuthenticationApi) -> None:
 # ============================================================
 
 async def login_vrchat() -> bool:
+    from .vrchat_client import _USER_AGENT
+
     vrchat_auth_cookie = os.getenv("VRCHAT_AUTH_COOKIE", "").strip()
 
     if vrchat_auth_cookie:
@@ -220,7 +229,10 @@ async def login_vrchat() -> bool:
             return True
 
         except Exception as exc:
-            log.warning("saved cookie failed: %s — falling back to username/password", exc)
+            log.warning(
+                "saved cookie failed: %s — falling back to username/password",
+                exc,
+            )
 
     if not VRCHAT_USERNAME or not VRCHAT_PASSWORD:
         log.warning("VRChat credentials missing")
@@ -251,7 +263,10 @@ async def login_vrchat() -> bool:
         _finalise_login(api_client, auth_api)
 
         from .vrchat_group import refresh_group_cache_once
-        from .vrchat_presence import _refresh_friend_presence_cache, _extract_auth_cookie_from_client
+        from .vrchat_presence import (
+            _extract_auth_cookie_from_client,
+            _refresh_friend_presence_cache,
+        )
 
         await _refresh_friend_presence_cache(force=True)
         await refresh_group_cache_once(force=True)
