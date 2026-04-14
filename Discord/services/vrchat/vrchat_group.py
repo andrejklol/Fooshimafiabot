@@ -5,7 +5,11 @@ from core.cache import app_state
 from core.config import GROUP_ID, VRC_STAFF_ROLE_NAMES
 from core.utils import vrchat_cooldown_active
 
-from .vrchat_auth import _ensure_vrc_sync_state, _run_vrc_api_call, _send_rate_limited_error
+from .vrchat_auth import (
+    _ensure_vrc_sync_state,
+    _run_vrc_api_call,
+    _send_rate_limited_error,
+)
 from .vrchat_client import (
     GROUP_MEMBERS_PAGE_DELAY_SECONDS,
     _extract_group_id,
@@ -35,7 +39,6 @@ def get_cached_vrc_user_roles(user_id: str) -> list[str]:
     cleaned_user_id = str(user_id or "").strip()
     if not cleaned_user_id:
         return []
-
     return app_state.vrc_group_member_roles.get(cleaned_user_id, [])
 
 
@@ -43,7 +46,6 @@ def get_cached_vrc_user_role_ids(user_id: str) -> list[str]:
     cleaned_user_id = str(user_id or "").strip()
     if not cleaned_user_id:
         return []
-
     return app_state.vrc_group_member_role_ids.get(cleaned_user_id, [])
 
 
@@ -92,7 +94,12 @@ async def get_pretty_vrc_name(entry) -> tuple[str, str]:
     if not target_id:
         return "Unknown User", "N/A"
 
-    for field in ("target_display_name", "target_username", "target_name", "display_name"):
+    for field in (
+        "target_display_name",
+        "target_username",
+        "target_name",
+        "display_name",
+    ):
         value = str(getattr(entry, field, None) or "").strip()
         if value:
             app_state.target_name_cache[target_id] = value
@@ -343,7 +350,8 @@ async def refresh_vrc_group_members(force: bool = False) -> None:
 
             wanted_roles = {str(x).strip().casefold() for x in VRC_STAFF_ROLE_NAMES}
             staff_role_ids = {
-                str(x).strip() for x in getattr(app_state, "vrchat_staff_role_ids", set())
+                str(x).strip()
+                for x in getattr(app_state, "vrchat_staff_role_ids", set())
             }
 
             preserved_staff = 0
