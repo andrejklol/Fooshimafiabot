@@ -266,5 +266,3 @@ Proudly built and engineered for the exclusive use of the **Fooshi Mafia VRChat 
 **Private Configuration.** All rights reserved.
 Unauthorized redistribution, compilation, or extraction of code blocks without explicit owner consent is strictly prohibited.
 ```
-
-Ignoring — read-only token, nothing to push.
