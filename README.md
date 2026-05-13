@@ -1,4 +1,3 @@
-```markdown
 # 🎩 Fooshi Mafia Staff Bot
 
 Advanced **Discord + VRChat moderation, automation, and staff performance tracking bot** built for structured communities, events, and organized staff teams.
