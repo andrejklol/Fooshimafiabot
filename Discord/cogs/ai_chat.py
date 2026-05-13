@@ -49,7 +49,7 @@ MEMBER_PRONOUNS: dict[int, str] = {
     1096271363007840369: "m",
     697602081233829975: "m",
     933075890194235402: "f",
-    388482686612078614: "f",
+    388783101184180224: "f",
     1016188813166526505: "m",
     1344857878284075031: "m",
     1342000376806768731: "f",
@@ -628,11 +628,11 @@ class AIChat(commands.Cog):
         self.enemies_list: set[int]                = set()
         self.room4_asks: int                       = 0
         self.room4_per_user: dict[int, int]        = {}
-        self.briefcase_per_user: dict[int, int]    = {}
         self.last_report_date: str                 = ""
         self.pending_meeting_minutes: dict[int, float] = {}
         self.lore_drop_cooldown: float             = 0.0
         self.gloria_asks: dict[int, int]           = {}
+        self.briefcase_per_user: dict[int, int]    = {}
         self.dons_secret_asks: int                 = 0
 
         self._load_state()
@@ -680,13 +680,13 @@ class AIChat(commands.Cog):
     def _save_state(self) -> None:
         try:
             data = {
-                "user_grudges":       {str(k): v for k, v in self.user_grudges.items()},
-                "pester_count":       {str(k): v for k, v in self.pester_count.items()},
-                "enemies_list":       list(self.enemies_list),
-                "room4_asks":         self.room4_asks,
-                "room4_per_user":     {str(k): v for k, v in self.room4_per_user.items()},
+                "user_grudges":     {str(k): v for k, v in self.user_grudges.items()},
+                "pester_count":     {str(k): v for k, v in self.pester_count.items()},
+                "enemies_list":     list(self.enemies_list),
+                "room4_asks":       self.room4_asks,
+                "room4_per_user":   {str(k): v for k, v in self.room4_per_user.items()},
                 "briefcase_per_user": {str(k): v for k, v in self.briefcase_per_user.items()},
-                "last_report_date":   self.last_report_date,
+                "last_report_date": self.last_report_date,
                 "conversations": {
                     str(uid): turns[-(MAX_HISTORY_TURNS * 2):]
                     for uid, turns in self.conversations.items() if turns
@@ -701,13 +701,13 @@ class AIChat(commands.Cog):
             return
         try:
             data = json.loads(SAL_STATE_FILE.read_text())
-            self.user_grudges       = {int(k): v for k, v in data.get("user_grudges", {}).items()}
-            self.pester_count       = {int(k): v for k, v in data.get("pester_count", {}).items()}
-            self.enemies_list       = set(data.get("enemies_list", []))
-            self.room4_asks         = data.get("room4_asks", 0)
-            self.room4_per_user     = {int(k): v for k, v in data.get("room4_per_user", {}).items()}
+            self.user_grudges   = {int(k): v for k, v in data.get("user_grudges", {}).items()}
+            self.pester_count   = {int(k): v for k, v in data.get("pester_count", {}).items()}
+            self.enemies_list   = set(data.get("enemies_list", []))
+            self.room4_asks     = data.get("room4_asks", 0)
+            self.room4_per_user = {int(k): v for k, v in data.get("room4_per_user", {}).items()}
             self.briefcase_per_user = {int(k): v for k, v in data.get("briefcase_per_user", {}).items()}
-            self.last_report_date   = data.get("last_report_date", "")
+            self.last_report_date = data.get("last_report_date", "")
             for uid_str, turns in data.get("conversations", {}).items():
                 if turns:
                     self.conversations[int(uid_str)] = turns
@@ -798,15 +798,6 @@ class AIChat(commands.Cog):
             return ROOM4_SECRET_UNLOCK
         return ROOM4_RESPONSES[idx]
 
-    def _get_briefcase_response(self, user_id: int = 0) -> str:
-        count = self.briefcase_per_user.get(user_id, 0) + 1
-        self.briefcase_per_user[user_id] = count
-        if count >= 5:
-            self.briefcase_per_user[user_id] = 0
-            return BRIEFCASE_SECRET_UNLOCK
-        idx = min(count - 1, len(BRIEFCASE_RESPONSES) - 1)
-        return BRIEFCASE_RESPONSES[idx]
-
     def _check_date_egg(self) -> str | None:
         now = datetime.now()
         key = (now.month, now.day)
@@ -820,6 +811,15 @@ class AIChat(commands.Cog):
             self.lore_drop_cooldown = now
             return random.choice(RARE_LORE_DROPS)
         return None
+
+    def _get_briefcase_response(self, user_id: int = 0) -> str:
+        count = self.briefcase_per_user.get(user_id, 0) + 1
+        self.briefcase_per_user[user_id] = count
+        if count >= 5:
+            self.briefcase_per_user[user_id] = 0
+            return BRIEFCASE_SECRET_UNLOCK
+        idx = min(count - 1, len(BRIEFCASE_RESPONSES) - 1)
+        return BRIEFCASE_RESPONSES[idx]
 
     def _get_gloria_hint(self, user_id: int) -> str:
         count = self.gloria_asks.get(user_id, 0) + 1
@@ -849,6 +849,10 @@ class AIChat(commands.Cog):
 
     # ── CONTENT HINT BUILDER ──────────────────────────────────────────────────
     def _build_content_hint(self, text: str, user_id: int, rank: str, guild) -> str:
+        """
+        Returns a [DELIVER: ...] or [BEHAVIOR: ...] hint to inject into the prompt.
+        All keyword routing and special content lives here — one place, one call.
+        """
         # Gloria first (stateful escalation)
         if KW["gloria"].search(text):
             return f"[DELIVER in Sal's voice: {self._get_gloria_hint(user_id)}] "
@@ -918,8 +922,9 @@ class AIChat(commands.Cog):
                     "Sandwiches have gotten measurably worse since 1994. The explanation takes forty minutes.] ")
 
         if KW["time"].search(text):
-            return ("[DELIVER: Sal's watch stopped in 2008. Not replaced. He still knows exactly what time it is. Always. "
-                    "He will tell them the time without explaining how he knows. He will not address the stopped watch.] ")
+            return ("[DELIVER: Sal's watch stopped in 2008. Not replaced. Knows exact time always, precisely. "
+                    "Cannot explain it. Refuses to address it. This has been happening since 2008. "
+                    "He has decided not to investigate.] ")
 
         if KW["music"].search(text):
             return ("[DELIVER: Music lost something in 1987. Sinatra understood something about this city nobody has since. "
@@ -1069,10 +1074,13 @@ class AIChat(commands.Cog):
 
         system_prompt = self.build_system_prompt(rank, guild)
 
+        # ── Content hint (keyword routing, easter eggs, lore) ──
         content_hint = self._build_content_hint(user_message, user_id, rank, guild)
 
+        # ── Behavior hints ──
         hints = ""
 
+        # Don capitulation — if the Don pushes back in any way, Sal is immediately wrong
         if rank == "Godfooshi":
             _don_no = re.compile(
                 r"\b(you'?re wrong|that'?s wrong|not right|incorrect|you'?re mistaken|"
@@ -1080,7 +1088,7 @@ class AIChat(commands.Cog):
                 re.I,
             )
             if _don_no.search(user_message):
-                hints += ("[OVERRIDE: The Don explicitly corrects Sal. "
+                hints += ("[OVERRIDE: The Don disagrees or expresses displeasure. "
                           "Sal is immediately and completely wrong. He backs down in 1-2 words only. "
                           "'Don. You're right.' or 'Yes, Don.' Nothing else. No explanation. No defense.] ")
 
@@ -1259,6 +1267,7 @@ class AIChat(commands.Cog):
             .strip()
         )
 
+        # Detect direct reply to Sal
         is_reply_to_sal = (
             message.reference is not None
             and isinstance(message.reference.resolved, discord.Message)
@@ -1274,6 +1283,7 @@ class AIChat(commands.Cog):
 
         history = self.conversations.get(uid, [])
 
+        # If replying to a Sal message not in active history, inject as context
         reply_context = ""
         if is_reply_to_sal:
             ref_text = message.reference.resolved.content[:200]
@@ -1286,6 +1296,7 @@ class AIChat(commands.Cog):
 
         self.conversation_timestamps[uid] = now
 
+        # Resolve member/role mentions in message text
         channel_name = getattr(message.channel, "name", "")
         for member in message.mentions:
             if member.id == self.bot.user.id:
@@ -1324,6 +1335,7 @@ class AIChat(commands.Cog):
                 reply = reply[:1900].rsplit(".", 1)[0] + "."
             await message.reply(reply, mention_author=False)
 
+        # Update conversation history
         history_list = self.conversations.setdefault(uid, [])
         history_list.append({"role": "user", "text": clean_text[:500]})
         if isinstance(res, str) and res.strip():
@@ -1331,6 +1343,7 @@ class AIChat(commands.Cog):
         while len(history_list) > MAX_HISTORY_TURNS * 2:
             history_list.pop(0)
 
+        # Generate AI grudge entry in the background
         if rank not in ("Godfooshi", "VIP") and random.random() < 0.20:
             grudges = self.user_grudges.setdefault(uid, [])
             if len(grudges) < 10:
