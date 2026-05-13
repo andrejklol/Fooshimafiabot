@@ -1,3 +1,4 @@
+```markdown
 # 🎩 Fooshi Mafia Staff Bot
 
 Advanced **Discord + VRChat moderation, automation, and staff performance tracking bot** built for structured communities, events, and organized staff teams.
@@ -7,6 +8,19 @@ Designed specifically for the **Fooshi Mafia VRChat community**, this bot seamle
 ---
 
 # ✨ Features
+
+## 🧹 Sal Mancini — AI Character Bot
+Meet **Sal Mancini**, the Fooshi Social Club's janitor since 1987. He knows where the bodies are because he cleaned up after them.
+
+Powered by **Google Gemini**, Sal is a fully stateful AI character who responds in-character to any mention. He remembers conversations, holds grudges, tracks who keeps pestering him, and has spent thirty-eight years mopping floors for people who forget he's in the room.
+
+* **Rank-Aware Responses:** Sal's tone shifts based on your server role — deferential to the Don, careful around the Consigliere, annoyed by Soldiers, outright contemptuous of Associates.
+* **Escalating Lore:** Ask about Room 4 enough times and he'll tell you. Ask about the briefcase enough times and he'll tell you that too. He has a limit.
+* **Stateful Memory:** Per-user conversation history, persistent grudge logs, pester counters, and an enemies list — all saved across restarts.
+* **Daily Reports:** Sal drops an automated maintenance log every morning at 9am. It is never normal.
+* **Gloria Escalation, Briefcase Escalation, Room 4 Escalation:** Three separate story threads that deepen the more you push.
+
+---
 
 ## 📊 Staff Activity & Live Syncing
 Automatically tracks moderation actions using VRChat audit logs, Discord events, and live web activity signals.
@@ -22,6 +36,7 @@ Ranks staff performance using an activity-based scoring system, visible across b
 * **Includes:** Global leaderboard tracking, automated monthly resets, individual staff analytics, and persistent storage.
 
 **Commands**
+
 ```text
 /leaderboard
 /staffrecord @user
@@ -31,7 +46,7 @@ Ranks staff performance using an activity-based scoring system, visible across b
 
 ## 🛡️ Advanced Security & Automation
 Equipped with proactive defensive tools to automate day-to-day community safety and server maintenance.
-* **Auto-Lockdown Protection:** Dynamically monitors joining patterns. Detects malicious server raids via sudden, calculated spikes in joins + bans, automatically locking invite channels and restricting public text channels. 
+* **Auto-Lockdown Protection:** Dynamically monitors joining patterns. Detects malicious server raids via sudden, calculated spikes in joins + bans, automatically locking invite channels and restricting public text channels.
 * **Smart Overrides:** Easily toggled off via dashboard configurations during official community events to prevent false-alarm lockdowns from legitimate member surges.
 
 ---
@@ -94,6 +109,7 @@ Role-based permission hierarchy strictly aligned with the authentic Fooshi Mafia
 # 💬 Commands
 
 ## Staff Commands
+
 ```text
 /leaderboard        - Displays top-performing staff members.
 /staffrecord @user  - Shows highly detailed, granular staff performance statistics.
@@ -101,6 +117,7 @@ Role-based permission hierarchy strictly aligned with the authentic Fooshi Mafia
 ```
 
 ## Owner Commands
+
 ```text
 /synccommands       - Force refreshes and flushes application slash commands with Discord.
 /refreshvrcmembers  - Re-indexes and rebuilds the VRChat group member cache.
@@ -109,6 +126,7 @@ Role-based permission hierarchy strictly aligned with the authentic Fooshi Mafia
 ```
 
 ## Utility Commands
+
 ```text
 /ping               - Measures bot API latency and gateway heartbeat.
 /vrcstatus          - Displays status of the VRChat API connection and active ingestion pipelines.
@@ -121,29 +139,51 @@ Role-based permission hierarchy strictly aligned with the authentic Fooshi Mafia
 ```text
 Discord/
 ├── cogs/
+│   ├── ai_chat/
+│   │   ├── __init__.py
+│   │   ├── character.py
+│   │   ├── cog.py
+│   │   ├── config.py
+│   │   ├── keywords.py
+│   │   └── lore.py
 │   ├── commands/
 │   │   ├── __init__.py
 │   │   ├── capo_commands.py
 │   │   ├── consigliere_commands.py
 │   │   ├── general_commands.py
-│   │   ├── owner_commands.py
+│   │   ├── godfooshi_commands.py
 │   │   ├── permissions.py
+│   │   ├── soldier_commands.py
 │   │   └── underboss_commands.py
 │   ├── __init__.py
+│   ├── alt_detector.py
+│   ├── discord_event_logger.py
 │   ├── error_handler.py
-│   ├── general.py
+│   ├── group_stats_sync.py
+│   ├── presence_warmup.py
 │   └── tasks.py
 ├── core/
 │   ├── __init__.py
+│   ├── base_module.py
 │   ├── cache.py
 │   ├── config.py
 │   ├── embeds.py
 │   ├── error_embed.py
+│   ├── event_registry.py
+│   ├── inbound_client.py
 │   ├── logger.py
+│   ├── reflection_layer.py
 │   └── utils.py
 ├── data/
 │   ├── leaderboard.template.json
-│   └── repeat_offenders.template.json
+│   ├── repeat_offenders.template.json
+│   └── sal_state.json
+├── modules/
+│   ├── __init__.py
+│   ├── moderation_module.py
+│   ├── profiles_module.py
+│   ├── system_module.py
+│   └── vrchat_bridge_module.py
 ├── services/
 │   ├── leaderboard/
 │   │   ├── __init__.py
@@ -165,7 +205,8 @@ Discord/
 │   │   ├── autosave.py
 │   │   ├── group_cache.py
 │   │   ├── log_polling.py
-│   │   └── monthly_reset.py
+│   │   ├── monthly_reset.py
+│   │   └── vrchat_audit_dispatcher.py
 │   ├── vrchat/
 │   │   ├── __init__.py
 │   │   ├── status_pipeline.py
@@ -190,14 +231,23 @@ Discord/
 * **Infrastructure Platform:** Fully optimized for Pterodactyl-based architectures (**Cybrancee Hosting** environment).
 * **Footprint Resource Profile:** Extremely lightweight architecture running at an ultra-lean idle memory profile of roughly **~61.57 MiB / 1 GiB RAM**.
 
+### Environment Variables
+
+```text
+DISCORD_TOKEN       - Your bot token.
+GEMINI_API_KEY      - Google Gemini API key (required for Sal).
+```
+
 ### Installation
 Install your required environment dependencies via your server console terminal:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### Execution
 Run the system initialization script from the root project folder:
+
 ```bash
 python Discord/main.py
 ```
@@ -214,5 +264,8 @@ Proudly built and engineered for the exclusive use of the **Fooshi Mafia VRChat 
 ---
 
 # 📜 License
-**Private Configuration.** All rights reserved. 
+**Private Configuration.** All rights reserved.
 Unauthorized redistribution, compilation, or extraction of code blocks without explicit owner consent is strictly prohibited.
+```
+
+Ignoring — read-only token, nothing to push.
