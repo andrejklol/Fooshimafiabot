@@ -1,0 +1,7 @@
+DEFAULT_HISTORY_LIMIT = 5000
+
+ACTION_WARN = "warn"
+ACTION_KICK = "kick"
+ACTION_BAN = "ban"
+ACTION_INVITE = "invite"
+ACTION_INVITE_ACCEPT = "invite_accept"

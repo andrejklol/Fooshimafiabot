@@ -1,0 +1,8 @@
+discord.py
+python-dotenv
+urllib3
+websockets
+vrchatapi
+colorama
+google-genai
+aiohttp

@@ -1,0 +1,43 @@
+# =========================
+# ENV / SECRETS
+# =========================
+.env
+.env.*
+
+# =========================
+# PYTHON CACHE
+# =========================
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================
+# VIRTUAL ENVIRONMENTS
+# =========================
+venv/
+.venv/
+.local/
+
+# =========================
+# APP CACHE
+# =========================
+.cache/
+
+# =========================
+# RUNTIME DATA (AUTO GENERATED ON HOST)
+# =========================
+Discord/data/leaderboard.json
+Discord/data/repeat_offenders.json
+
+# =========================
+# LOG FILES
+# =========================
+*.log
+
+# =========================
+# OS FILES
+# =========================
+.DS_Store
+Thumbs.db
