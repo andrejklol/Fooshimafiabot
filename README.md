@@ -260,8 +260,6 @@ python Discord/main.py
 # 👥 Credits
 Proudly built and engineered for the exclusive use of the **Fooshi Mafia VRChat community**.
 
----
-
 # 📜 License
 **Private Configuration.** All rights reserved.
 Unauthorized redistribution, compilation, or extraction of code blocks without explicit owner consent is strictly prohibited.
