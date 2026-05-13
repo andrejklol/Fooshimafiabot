@@ -49,7 +49,7 @@ MEMBER_PRONOUNS: dict[int, str] = {
     1096271363007840369: "m",
     697602081233829975: "m",
     933075890194235402: "f",
-    388783101184180224: "f",
+    388482686612078614: "f",
     1016188813166526505: "m",
     1344857878284075031: "m",
     1342000376806768731: "f",
@@ -354,7 +354,7 @@ KW = {
     "paulie":      re.compile(r"\b(big paulie|paulie)\b", re.I),
     "frankie":     re.compile(r"\b(frankie two.?shoes|frankie)\b", re.I),
     "2011":        re.compile(r"\b2011\b", re.I),
-    "briefcase":   re.compile(r"\b(the briefcase|boiler room briefcase|briefcase in the boiler)\b", re.I),
+    "briefcase":   re.compile(r"\b(briefcase|what was inside|what'?s inside|inside the briefcase|did you look inside|did you open it|open the briefcase)\b", re.I),
     "lasagna":     re.compile(r"\b(the lasagna|week of the lasagna)\b", re.I),
     "fed":         re.compile(r"\b(the fed|the agent|toilet bug|bug in the toilet)\b", re.I),
     "80s":         re.compile(r"\b(the 80s|the eighties|back in the 80s|back in the eighties)\b", re.I),
@@ -390,6 +390,23 @@ DONS_SECRET_FACTS = [
     "Sal cleaned the Don's office one morning in 1994 and found something. Not a weapon. Not money. Something personal. Something that explained things Sal had wondered about for seven years. He put it back. He stops himself from saying more. Says he needs to mop something.",
     "In 1994 he found a photograph in the Don's trash. One photograph. He does not know who was in it. He knows what it meant. The Don came in an hour later. The Don looked at Sal. Neither spoke. That photograph is why Sal still has this job thirty-eight years later. That is all he will ever say.",
 ]
+
+# ─── BRIEFCASE ESCALATION ─────────────────────────────────────────────────────
+BRIEFCASE_RESPONSES = [
+    "I moved it. I didn't open it. That's the whole story. It's been in the back of the supply closet since 1998.",
+    "It was heavy. A heavy briefcase in the boiler room at 2am is not something you open. It's something you move and forget about.",
+    "The latch wasn't fully closed. I didn't look. There's a difference between seeing something and looking at it. I did not look.",
+    "There was a smell. Not a bad smell. A very specific smell I know from this building. I moved it faster after that. It's been behind the bad bleach for twenty-seven years.",
+]
+
+BRIEFCASE_SECRET_UNLOCK = (
+    "Alright. Fine. The latch was open a crack. I saw paper — a lot of it, banded. Photographs. "
+    "And something wrapped in a cloth that I recognized the shape of and did not need to investigate further. "
+    "I closed the latch. I moved it to the back of the supply closet, behind the store-brand bleach. "
+    "That was 1998. If it's still there, nobody's come for it in twenty-seven years. "
+    "If it's not there anymore, I genuinely do not know anything about that. "
+    "This conversation did not happen."
+)
 
 # ─── GLORIA ESCALATION ────────────────────────────────────────────────────────
 GLORIA_ESCALATION = [
@@ -456,11 +473,6 @@ EASTER_EGG_HINTS: dict[str, str] = {
     "80s": (
         "FACTS: The 1980s were Sal's golden era. Floors were cleaner. Suits were louder. Mops were better. "
         "A requisition could be approved in under six months. Things made sense."
-    ),
-    "briefcase": (
-        "FACTS: In 1998, Sal found a briefcase in the boiler room. "
-        "He moved it. He did not open it. He put it somewhere else. "
-        "He still thinks about what was in it at 2am sometimes."
     ),
     "lasagna": (
         "FACTS: A lasagna appeared in the break room and sat untouched for eight days. "
@@ -616,6 +628,7 @@ class AIChat(commands.Cog):
         self.enemies_list: set[int]                = set()
         self.room4_asks: int                       = 0
         self.room4_per_user: dict[int, int]        = {}
+        self.briefcase_per_user: dict[int, int]    = {}
         self.last_report_date: str                 = ""
         self.pending_meeting_minutes: dict[int, float] = {}
         self.lore_drop_cooldown: float             = 0.0
@@ -667,12 +680,13 @@ class AIChat(commands.Cog):
     def _save_state(self) -> None:
         try:
             data = {
-                "user_grudges":     {str(k): v for k, v in self.user_grudges.items()},
-                "pester_count":     {str(k): v for k, v in self.pester_count.items()},
-                "enemies_list":     list(self.enemies_list),
-                "room4_asks":       self.room4_asks,
-                "room4_per_user":   {str(k): v for k, v in self.room4_per_user.items()},
-                "last_report_date": self.last_report_date,
+                "user_grudges":       {str(k): v for k, v in self.user_grudges.items()},
+                "pester_count":       {str(k): v for k, v in self.pester_count.items()},
+                "enemies_list":       list(self.enemies_list),
+                "room4_asks":         self.room4_asks,
+                "room4_per_user":     {str(k): v for k, v in self.room4_per_user.items()},
+                "briefcase_per_user": {str(k): v for k, v in self.briefcase_per_user.items()},
+                "last_report_date":   self.last_report_date,
                 "conversations": {
                     str(uid): turns[-(MAX_HISTORY_TURNS * 2):]
                     for uid, turns in self.conversations.items() if turns
@@ -687,12 +701,13 @@ class AIChat(commands.Cog):
             return
         try:
             data = json.loads(SAL_STATE_FILE.read_text())
-            self.user_grudges   = {int(k): v for k, v in data.get("user_grudges", {}).items()}
-            self.pester_count   = {int(k): v for k, v in data.get("pester_count", {}).items()}
-            self.enemies_list   = set(data.get("enemies_list", []))
-            self.room4_asks     = data.get("room4_asks", 0)
-            self.room4_per_user = {int(k): v for k, v in data.get("room4_per_user", {}).items()}
-            self.last_report_date = data.get("last_report_date", "")
+            self.user_grudges       = {int(k): v for k, v in data.get("user_grudges", {}).items()}
+            self.pester_count       = {int(k): v for k, v in data.get("pester_count", {}).items()}
+            self.enemies_list       = set(data.get("enemies_list", []))
+            self.room4_asks         = data.get("room4_asks", 0)
+            self.room4_per_user     = {int(k): v for k, v in data.get("room4_per_user", {}).items()}
+            self.briefcase_per_user = {int(k): v for k, v in data.get("briefcase_per_user", {}).items()}
+            self.last_report_date   = data.get("last_report_date", "")
             for uid_str, turns in data.get("conversations", {}).items():
                 if turns:
                     self.conversations[int(uid_str)] = turns
@@ -783,6 +798,15 @@ class AIChat(commands.Cog):
             return ROOM4_SECRET_UNLOCK
         return ROOM4_RESPONSES[idx]
 
+    def _get_briefcase_response(self, user_id: int = 0) -> str:
+        count = self.briefcase_per_user.get(user_id, 0) + 1
+        self.briefcase_per_user[user_id] = count
+        if count >= 5:
+            self.briefcase_per_user[user_id] = 0
+            return BRIEFCASE_SECRET_UNLOCK
+        idx = min(count - 1, len(BRIEFCASE_RESPONSES) - 1)
+        return BRIEFCASE_RESPONSES[idx]
+
     def _check_date_egg(self) -> str | None:
         now = datetime.now()
         key = (now.month, now.day)
@@ -828,6 +852,10 @@ class AIChat(commands.Cog):
         # Gloria first (stateful escalation)
         if KW["gloria"].search(text):
             return f"[DELIVER in Sal's voice: {self._get_gloria_hint(user_id)}] "
+
+        # Briefcase escalation (stateful — unlocks on 5th ask)
+        if KW["briefcase"].search(text):
+            return f"[DELIVER: {self._get_briefcase_response(user_id)}] "
 
         # Named easter eggs
         for key, hint in EASTER_EGG_HINTS.items():
