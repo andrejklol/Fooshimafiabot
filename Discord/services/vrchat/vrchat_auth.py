@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import binascii
 import logging
 import os
 import time
@@ -63,7 +65,7 @@ def _ensure_vrc_sync_state() -> None:
     _ensure_attr_default("vrc_group_members_last_refresh", 0.0)
     _ensure_attr_default("vrc_group_role_map", dict)
     _ensure_attr_default("vrc_group_member_roles", dict)
-    _ensure_attr_default("vrc_group_member_ids", dict)
+    _ensure_attr_default("vrc_group_member_role_ids", dict)
     _ensure_attr_default("vrchat_staff_role_ids", set)
     _ensure_attr_default("vrchat_group_roles", dict)
     _ensure_attr_default("vrchat_group_members", dict)
@@ -127,6 +129,16 @@ def _needs_2fa(err: str) -> bool:
         "Two-factor", "two factor",
     ])
 
+def _2fa_is_email(err: str) -> bool:
+    return "emailOtp" in err or "Email 2 Factor" in err
+
+def _validate_totp_secret(secret: str) -> bool:
+    try:
+        base64.b32decode(secret.upper().replace(" ", "").replace("-", ""), casefold=True)
+        return True
+    except (binascii.Error, ValueError):
+        return False
+
 async def login_vrchat() -> bool:
     from .vrchat_client import _USER_AGENT
 
@@ -187,44 +199,65 @@ async def login_vrchat() -> bool:
             await send_error_log("VRChat Login Failed", err)
             return False
 
-    # --- TOTP path (authenticator app — works reliably for bots) ---
-    totp_secret = VRC_CONFIG.get('totp_secret')
-    if totp_secret:
-        try:
-            import pyotp
-        except ImportError:
-            log.error("pyotp not installed — run: pip install pyotp")
+    # Route based on which 2FA type VRChat is asking for
+    if _2fa_is_email(err):
+        # VRChat account is set to Email OTP
+        totp_secret = VRC_CONFIG.get('totp_secret', '').strip()
+        if totp_secret:
+            log.warning(
+                "VRChat is asking for Email OTP but VRCHAT_TOTP_SECRET is set. "
+                "The account 2FA type in VRChat settings must be changed to "
+                "Authenticator App before TOTP will work."
+            )
+
+        otp = VRC_CONFIG.get('otp', '').strip()
+        if not otp:
+            log.error("Email OTP required but VRCHAT_EMAIL_OTP is not set in environment")
             return False
 
-        code = pyotp.TOTP(totp_secret).now()
-        log.info("Submitting TOTP 2FA code...")
+        log.info("Submitting email 2FA code...")
         try:
             await _run_vrc_api_call(
-                auth_api.verify2_fa,
-                TwoFactorAuthCode(code=code),
+                auth_api.verify2_fa_email_code,
+                TwoFactorEmailCode(code=otp),
             )
             user = await _run_vrc_api_call(auth_api.get_current_user)
             return await _complete_login(user)
-        except Exception as totp_exc:
-            await send_error_log("VRChat TOTP 2FA Failed", str(totp_exc))
+        except Exception as otp_exc:
+            await send_error_log("VRChat Email 2FA Failed", str(otp_exc))
             return False
 
-    # --- Email OTP fallback (static code, only useful for one-time manual restarts) ---
-    otp = VRC_CONFIG.get('otp')
-    if not otp:
-        log.error("2FA required but neither VRCHAT_TOTP_SECRET nor VRCHAT_EMAIL_OTP is set in environment")
+    # VRChat is asking for TOTP (authenticator app)
+    totp_secret = VRC_CONFIG.get('totp_secret', '').strip()
+    if not totp_secret:
+        log.error("TOTP 2FA required but VRCHAT_TOTP_SECRET is not set in environment")
         return False
 
-    log.info("Submitting email 2FA code (static — consider switching to TOTP)...")
+    if not _validate_totp_secret(totp_secret):
+        log.error(
+            "VRCHAT_TOTP_SECRET is not a valid base32 key. "
+            "Copy the text secret key from VRChat's authenticator setup page "
+            "(not the QR code URL)."
+        )
+        return False
+
+    try:
+        import pyotp
+    except ImportError:
+        log.error("pyotp not installed — run: pip install pyotp")
+        return False
+
+    code = pyotp.TOTP(totp_secret).now()
+    log.info("Submitting TOTP 2FA code...")
     try:
         await _run_vrc_api_call(
-            auth_api.verify2_fa_email_code,
-            TwoFactorEmailCode(code=otp),
+            auth_api.verify2_fa,
+            TwoFactorAuthCode(code=code),
         )
         user = await _run_vrc_api_call(auth_api.get_current_user)
         return await _complete_login(user)
-    except Exception as otp_exc:
-        await send_error_log("VRChat Email 2FA Failed", str(otp_exc))
+    except Exception as totp_exc:
+        await send_error_log("VRChat TOTP 2FA Failed", str(totp_exc))
         return False
 
 __all__ = [
