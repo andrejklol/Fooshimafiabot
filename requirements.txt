@@ -6,3 +6,4 @@ vrchatapi
 colorama
 google-genai
 aiohttp
+pyotp
