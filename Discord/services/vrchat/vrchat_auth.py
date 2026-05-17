@@ -97,7 +97,7 @@ async def _run_vrc_api_call(func, *args, retries: int = VRCHAT_API_RETRIES, **kw
         except Exception as exc:
             last_exc = exc
             if attempt >= retries: raise
-            if _is_rate_limit_error(exc): raise  # never retry rate limits
+            if _is_rate_limit_error(exc): raise
             delay = VRCHAT_API_BASE_DELAY_SECONDS * attempt
             log.warning(f"VRChat API retry {attempt}/{retries} | error: {exc}")
             await asyncio.sleep(delay)
@@ -187,12 +187,9 @@ async def login_vrchat() -> bool:
     async def _complete_login(user_obj) -> bool:
         _finalise_login(api_client, auth_api)
         from .vrchat_group import refresh_group_cache_once
-        from .vrchat_presence import _extract_auth_cookie_from_client, _refresh_friend_presence_cache
+        from .vrchat_presence import _refresh_friend_presence_cache
         await _refresh_friend_presence_cache(force=True)
         await refresh_group_cache_once(force=True)
-        cookie = _extract_auth_cookie_from_client()
-        if cookie:
-            log.info(f"New Auth Cookie: {cookie}")
         return True
 
     err = ""
