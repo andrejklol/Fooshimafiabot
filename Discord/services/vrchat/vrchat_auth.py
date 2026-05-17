@@ -85,6 +85,10 @@ def _is_connection_reset_error(exc: Exception) -> bool:
         ])
     )
 
+def _is_rate_limit_error(exc: Exception) -> bool:
+    text = str(exc or "")
+    return "429" in text or "Too Many Requests" in text
+
 async def _run_vrc_api_call(func, *args, retries: int = VRCHAT_API_RETRIES, **kwargs):
     last_exc = None
     for attempt in range(1, retries + 1):
@@ -93,6 +97,7 @@ async def _run_vrc_api_call(func, *args, retries: int = VRCHAT_API_RETRIES, **kw
         except Exception as exc:
             last_exc = exc
             if attempt >= retries: raise
+            if _is_rate_limit_error(exc): raise  # never retry rate limits
             delay = VRCHAT_API_BASE_DELAY_SECONDS * attempt
             log.warning(f"VRChat API retry {attempt}/{retries} | error: {exc}")
             await asyncio.sleep(delay)
@@ -126,7 +131,7 @@ def _finalise_login(api_client: ApiClient, auth_api: AuthenticationApi) -> None:
 def _needs_2fa(err: str) -> bool:
     return any(s in err for s in [
         "requiresTwoFactorAuth", "Email 2 Factor", "emailOtp", "totp",
-        "Two-factor", "two factor",
+        "Two-factor", "two factor", "2 Factor",
     ])
 
 def _2fa_is_email(err: str) -> bool:
@@ -134,7 +139,7 @@ def _2fa_is_email(err: str) -> bool:
 
 def _validate_totp_secret(secret: str) -> bool:
     try:
-        base64.b32decode(secret.upper().replace(" ", "").replace("-", ""), casefold=True)
+        base64.b32decode(secret, casefold=True)
         return True
     except (binascii.Error, ValueError):
         return False
@@ -190,31 +195,31 @@ async def login_vrchat() -> bool:
             log.info(f"New Auth Cookie: {cookie}")
         return True
 
+    err = ""
     try:
         user = await _run_vrc_api_call(auth_api.get_current_user)
         return await _complete_login(user)
     except Exception as exc:
         err = str(exc)
+        if _is_rate_limit_error(exc):
+            await send_error_log("VRChat Login Rate Limited", "Too many failed attempts. Wait 1 hour before restarting.")
+            return False
         if not _needs_2fa(err):
             await send_error_log("VRChat Login Failed", err)
             return False
 
     # Route based on which 2FA type VRChat is asking for
     if _2fa_is_email(err):
-        # VRChat account is set to Email OTP
         totp_secret = VRC_CONFIG.get('totp_secret', '').strip()
         if totp_secret:
             log.warning(
                 "VRChat is asking for Email OTP but VRCHAT_TOTP_SECRET is set. "
-                "The account 2FA type in VRChat settings must be changed to "
-                "Authenticator App before TOTP will work."
+                "Switch the account 2FA type to Authenticator App in VRChat settings."
             )
-
         otp = VRC_CONFIG.get('otp', '').strip()
         if not otp:
             log.error("Email OTP required but VRCHAT_EMAIL_OTP is not set in environment")
             return False
-
         log.info("Submitting email 2FA code...")
         try:
             await _run_vrc_api_call(
@@ -227,17 +232,17 @@ async def login_vrchat() -> bool:
             await send_error_log("VRChat Email 2FA Failed", str(otp_exc))
             return False
 
-    # VRChat is asking for TOTP (authenticator app)
+    # TOTP (authenticator app)
     totp_secret = VRC_CONFIG.get('totp_secret', '').strip()
     if not totp_secret:
         log.error("TOTP 2FA required but VRCHAT_TOTP_SECRET is not set in environment")
         return False
 
+    totp_secret = totp_secret.upper().replace(" ", "").replace("-", "")
     if not _validate_totp_secret(totp_secret):
         log.error(
             "VRCHAT_TOTP_SECRET is not a valid base32 key. "
-            "Copy the text secret key from VRChat's authenticator setup page "
-            "(not the QR code URL)."
+            "Copy the text secret key from VRChat's authenticator setup page."
         )
         return False
 
