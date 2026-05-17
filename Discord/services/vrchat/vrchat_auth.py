@@ -6,11 +6,11 @@ import time
 import urllib3
 from vrchatapi import ApiClient, Configuration
 from vrchatapi.api.authentication_api import AuthenticationApi
-# Explicitly use the model for 2FA
+from vrchatapi.models.two_factor_auth_code import TwoFactorAuthCode
 from vrchatapi.models.two_factor_email_code import TwoFactorEmailCode
 
 from core.cache import app_state
-from core.config import VRC_CONFIG  # Switched to the central config
+from core.config import VRC_CONFIG
 from core.utils import (
     format_remaining_cooldown,
     run_blocking,
@@ -63,7 +63,7 @@ def _ensure_vrc_sync_state() -> None:
     _ensure_attr_default("vrc_group_members_last_refresh", 0.0)
     _ensure_attr_default("vrc_group_role_map", dict)
     _ensure_attr_default("vrc_group_member_roles", dict)
-    _ensure_attr_default("vrc_group_member_role_ids", dict)
+    _ensure_attr_default("vrc_group_member_ids", dict)
     _ensure_attr_default("vrchat_staff_role_ids", set)
     _ensure_attr_default("vrchat_group_roles", dict)
     _ensure_attr_default("vrchat_group_members", dict)
@@ -78,7 +78,7 @@ def _is_connection_reset_error(exc: Exception) -> bool:
     return (
         isinstance(exc, ConnectionResetError)
         or any(phrase in text for phrase in [
-            "ConnectionResetError", "Connection aborted", 
+            "ConnectionResetError", "Connection aborted",
             "forcibly closed", "Max retries exceeded", "ProtocolError"
         ])
     )
@@ -121,10 +121,16 @@ def _finalise_login(api_client: ApiClient, auth_api: AuthenticationApi) -> None:
     from .vrchat_presence import ensure_pipeline_listener_started
     ensure_pipeline_listener_started()
 
+def _needs_2fa(err: str) -> bool:
+    return any(s in err for s in [
+        "requiresTwoFactorAuth", "Email 2 Factor", "emailOtp", "totp",
+        "Two-factor", "two factor",
+    ])
+
 async def login_vrchat() -> bool:
     from .vrchat_client import _USER_AGENT
-    
-    # Check for saved cookie first
+
+    # Try saved cookie first
     auth_cookie = os.getenv("VRCHAT_AUTH_COOKIE", "").strip()
     if auth_cookie:
         log.info("Attempting VRChat login using saved cookie...")
@@ -144,7 +150,7 @@ async def login_vrchat() -> bool:
         except Exception as exc:
             log.warning(f"Saved cookie failed, falling back to credentials: {exc}")
 
-    # Fallback to Username/Password from VRC_CONFIG
+    # Fallback to username/password
     creds = (VRC_CONFIG['username'], VRC_CONFIG['password'])
     if not all(creds):
         log.error("VRChat credentials missing in VRC_CONFIG")
@@ -167,9 +173,9 @@ async def login_vrchat() -> bool:
         from .vrchat_presence import _extract_auth_cookie_from_client, _refresh_friend_presence_cache
         await _refresh_friend_presence_cache(force=True)
         await refresh_group_cache_once(force=True)
-        
         cookie = _extract_auth_cookie_from_client()
-        if cookie: log.info(f"New Auth Cookie: {cookie}")
+        if cookie:
+            log.info(f"New Auth Cookie: {cookie}")
         return True
 
     try:
@@ -177,27 +183,49 @@ async def login_vrchat() -> bool:
         return await _complete_login(user)
     except Exception as exc:
         err = str(exc)
-        if "Email 2 Factor" not in err:
+        if not _needs_2fa(err):
             await send_error_log("VRChat Login Failed", err)
             return False
 
-        # Handle 2FA
-        otp = VRC_CONFIG.get('email_otp')
-        if not otp:
-            log.error("Email 2FA required but 'email_otp' not set in VRC_CONFIG")
+    # --- TOTP path (authenticator app — works reliably for bots) ---
+    totp_secret = VRC_CONFIG.get('totp_secret')
+    if totp_secret:
+        try:
+            import pyotp
+        except ImportError:
+            log.error("pyotp not installed — run: pip install pyotp")
             return False
 
-        log.info("Submitting 2FA code...")
+        code = pyotp.TOTP(totp_secret).now()
+        log.info("Submitting TOTP 2FA code...")
         try:
             await _run_vrc_api_call(
-                auth_api.verify2_fa_email_code,
-                TwoFactorEmailCode(code=otp),
+                auth_api.verify2_fa,
+                TwoFactorAuthCode(code=code),
             )
             user = await _run_vrc_api_call(auth_api.get_current_user)
             return await _complete_login(user)
-        except Exception as otp_exc:
-            await send_error_log("VRChat 2FA Failed", str(otp_exc))
+        except Exception as totp_exc:
+            await send_error_log("VRChat TOTP 2FA Failed", str(totp_exc))
             return False
+
+    # --- Email OTP fallback (static code, only useful for one-time manual restarts) ---
+    otp = VRC_CONFIG.get('otp')
+    if not otp:
+        log.error("2FA required but neither VRCHAT_TOTP_SECRET nor VRCHAT_EMAIL_OTP is set in environment")
+        return False
+
+    log.info("Submitting email 2FA code (static — consider switching to TOTP)...")
+    try:
+        await _run_vrc_api_call(
+            auth_api.verify2_fa_email_code,
+            TwoFactorEmailCode(code=otp),
+        )
+        user = await _run_vrc_api_call(auth_api.get_current_user)
+        return await _complete_login(user)
+    except Exception as otp_exc:
+        await send_error_log("VRChat Email 2FA Failed", str(otp_exc))
+        return False
 
 __all__ = [
     "login_vrchat", "_ensure_pipeline_state", "_ensure_recent_activity_state",
