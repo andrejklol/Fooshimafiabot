@@ -61,8 +61,9 @@ VRC_CONFIG = {
     "username": os.getenv("VRCHAT_USERNAME"),
     "password": os.getenv("VRCHAT_PASSWORD"),
     "otp": os.getenv("VRCHAT_EMAIL_OTP"),
+    "totp_secret": os.getenv("VRCHAT_TOTP_SECRET"),
     "group_id": os.getenv("VRCHAT_GROUP_ID", "grp_23595db4-1452-4fbf-97e1-661fa1b9b074"),
-    "staff_role_names": VRC_STAFF_ROLE_NAMES 
+    "staff_role_names": VRC_STAFF_ROLE_NAMES
 }
 
 # --- Channels ---
