@@ -156,7 +156,9 @@ async def _resolve_vrchat_status(vrc_id: str):
     pipeline_entry = getattr(app_state, "vrc_pipeline_friend_presence", {}).get(vrc_id) or {}
     platform = str(pipeline_entry.get("platform", "")).strip() or None
 
-    vrc_status_hint = None
+    # Prefer the literal VRChat profile status from the friend object cache.
+    friend_obj = (getattr(app_state, "vrc_pipeline_friend_presence_cache", {}) or {}).get(vrc_id)
+    vrc_status_hint = (getattr(friend_obj, "status", None) or "").strip().lower() or None
 
     if not cache_entry:
         try:
@@ -164,8 +166,8 @@ async def _resolve_vrchat_status(vrc_id: str):
             is_online, _, source_or_status = await get_vrchat_user_status(vrchat_user_id=vrc_id)
             cached_online = bool(is_online) or cached_online
             if source_or_status and source_or_status not in ("pipeline", "friend_presence"):
-                vrc_status_hint = str(source_or_status).lower().strip()
-            
+                vrc_status_hint = vrc_status_hint or str(source_or_status).lower().strip()
+
             refreshed = getattr(app_state, "user_online_cache", {}).get(vrc_id) or {}
             reason = refreshed.get("reason") or reason
             updated_at_ts = refreshed.get("updated_at") or updated_at_ts
@@ -173,9 +175,12 @@ async def _resolve_vrchat_status(vrc_id: str):
             log.debug("[autosave] vrc fallback failed %s: %s", vrc_id, exc)
 
     if cached_online:
-        if vrc_status_hint in ("join me", "joinme"):
+        # Use the literal VRChat profile status when available;
+        # fall back to "active" — never "offline" since the cache confirms online.
+        payload_status = vrc_status_hint or "active"
+        if payload_status in ("join me", "joinme"):
             vrc_status = "joinme"
-        elif vrc_status_hint in ("busy", "ask me", "askme"):
+        elif payload_status in ("busy", "ask me", "askme"):
             vrc_status = "busy"
         else:
             vrc_status = "online"
